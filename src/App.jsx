@@ -9,7 +9,7 @@ import {
 
 // --- Firebase 相關引入 ---
 import { auth, googleProvider, db } from './firebase';
-import { signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
+import { signInWithRedirect, signOut, onAuthStateChanged } from 'firebase/auth'; // 改用 Redirect 登入更穩定
 import { 
   collection, addDoc, query, where, onSnapshot, 
   doc, updateDoc, deleteDoc, writeBatch 
@@ -69,7 +69,6 @@ export default function App() {
 
         const unsubTrips = onSnapshot(tripsQuery, (snapshot) => {
           const tripsData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
-          // 確保 days 是陣列，避免舊資料報錯
           const safeTrips = tripsData.map(t => ({...t, days: t.days || []}));
           setAllTrips(safeTrips);
         });
@@ -88,9 +87,9 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-  // --- 2. 登入/登出 ---
-  const handleLogin = async () => {
-    try { await signInWithPopup(auth, googleProvider); } catch (error) { console.error("Login failed", error); }
+  // --- 2. 登入/登出 (使用 Redirect 以適應手機環境) ---
+  const handleLogin = () => {
+    signInWithRedirect(auth, googleProvider);
   };
   const handleLogout = async () => {
     try { await signOut(auth); } catch (error) { console.error("Logout failed", error); }
@@ -167,6 +166,10 @@ export default function App() {
         <button onClick={handleLogin} className="bg-zen-text text-white px-8 py-4 rounded-full font-bold shadow-xl flex items-center gap-3 hover:scale-105 transition-transform">
           <LogIn size={20} /> 使用 Google 登入
         </button>
+        <div className="mt-8 text-xs text-gray-400 text-center">
+            <p>Phase 4 雲端同步版</p>
+            <p className="mt-1 opacity-70">支援手機與電腦即時連線</p>
+        </div>
       </div>
     );
   }
@@ -203,12 +206,17 @@ export default function App() {
                 </div>
               </div>
             ))}
+            {allTrips.length === 0 && (
+                <div className="text-center py-10 bg-white rounded-3xl border border-dashed border-gray-300">
+                    <p className="text-gray-400 mb-4">雲端尚無資料</p>
+                </div>
+            )}
           </div>
         )}
         <button onClick={() => setShowAddTripModal(true)} className="fixed bottom-8 right-6 bg-zen-text text-white p-4 rounded-full shadow-2xl hover:bg-black transition-transform active:scale-95 z-50"><Plus size={24} /></button>
         {showAddTripModal && <AddTripModal onClose={() => setShowAddTripModal(false)} onSave={handleAddTrip} />}
         
-        <div className="text-center mt-10">
+        <div className="text-center mt-10 pb-10">
              <button onClick={handleMigrateData} className="text-xs text-blue-500 underline flex items-center justify-center gap-1 mx-auto">
                 <CloudUpload size={12}/> 從本機移轉舊資料到雲端
              </button>
@@ -233,7 +241,7 @@ export default function App() {
   );
 }
 
-// --- 主要分頁組件 (整合刪除日期) ---
+// --- 主要分頁組件 ---
 function TripDetail({ trip, expenses, categories, onBack, onUpdate, onAddExpense, onDeleteExpense }) {
     const [activeDayIdx, setActiveDayIdx] = useState(0);
     const [activeTab, setActiveTab] = useState('plan'); 
@@ -241,11 +249,7 @@ function TripDetail({ trip, expenses, categories, onBack, onUpdate, onAddExpense
     const handleAddDay = () => {
       let defaultDate = "";
       if (trip.days && trip.days.length > 0) {
-        const lastDateStr = trip.days[trip.days.length - 1].date;
-        try {
-           // 簡單日期推算 (這裡僅作示意，可優化)
-           defaultDate = "New Day";
-        } catch (e) {}
+        try { defaultDate = "New Day"; } catch (e) {}
       }
       const dateStr = window.prompt("請輸入日期 (例: 10/16)", defaultDate || "");
       if (!dateStr) return;
@@ -261,7 +265,6 @@ function TripDetail({ trip, expenses, categories, onBack, onUpdate, onAddExpense
         if(!window.confirm(`確定要刪除 ${trip.days[index].date} 及其所有行程嗎？`)) return;
         
         const newDays = trip.days.filter((_, i) => i !== index);
-        // 調整選中的 index
         let newIdx = activeDayIdx;
         if (index === activeDayIdx && newDays.length > 0) newIdx = Math.max(0, index - 1);
         else if (newDays.length === 0) newIdx = 0;
@@ -290,7 +293,6 @@ function TripDetail({ trip, expenses, categories, onBack, onUpdate, onAddExpense
                 <span className="block text-xs opacity-60">{d.weekday}</span>
                 {d.date}
                 
-                {/* 刪除日期按鈕 */}
                 <button onClick={(e) => handleDeleteDay(e, i)} 
                     className={`absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity ${i === activeDayIdx ? 'block' : ''}`}>
                     <X size={10} />
@@ -319,7 +321,8 @@ function TripDetail({ trip, expenses, categories, onBack, onUpdate, onAddExpense
           {activeTab === 'tools' && <ToolboxView />}
         </div>
   
-        <div className="fixed bottom-0 w-full bg-white border-t border-gray-200 flex justify-around items-center p-2 pb-6 z-50">
+        {/* UI優化：毛玻璃底部選單 */}
+        <div className="fixed bottom-0 w-full bg-white/90 backdrop-blur-md border-t border-gray-200 flex justify-around items-center p-2 pb-6 z-50 shadow-[0_-5px_15px_rgba(0,0,0,0.02)]">
           <TabButton icon={List} label="行程" isActive={activeTab === 'plan'} onClick={() => setActiveTab('plan')} />
           <TabButton icon={Map} label="地圖" isActive={activeTab === 'map'} onClick={() => setActiveTab('map')} />
           <TabButton icon={Wallet} label="記帳" isActive={activeTab === 'budget'} onClick={() => setActiveTab('budget')} />
@@ -329,7 +332,7 @@ function TripDetail({ trip, expenses, categories, onBack, onUpdate, onAddExpense
     );
 }
 
-// --- 行程視圖 (整合拖拉 + 時區) ---
+// --- 行程視圖 (整合拖拉 + 時區 + UI優化) ---
 function PlanView({ trip, activeDayIdx, onUpdate }) {
   const [editingItem, setEditingItem] = useState(null);
   const [showItemModal, setShowItemModal] = useState(false);
@@ -343,11 +346,9 @@ function PlanView({ trip, activeDayIdx, onUpdate }) {
     const daySchedule = [...(newDays[activeDayIdx].schedule || [])];
     
     if (editingItem) {
-      // 編輯
       const index = daySchedule.findIndex(i => i === editingItem);
       if(index !== -1) daySchedule[index] = itemData;
     } else {
-      // 新增
       daySchedule.push(itemData);
       // 初次新增自動排序，之後靠拖拉
       daySchedule.sort((a, b) => a.time.localeCompare(b.time)); 
@@ -367,7 +368,6 @@ function PlanView({ trip, activeDayIdx, onUpdate }) {
     onUpdate({ ...trip, days: newDays });
   };
 
-  // 拖拉結束處理
   const handleDragEnd = (result) => {
     if (!result.destination) return;
     const items = Array.from(schedule);
@@ -408,42 +408,60 @@ function PlanView({ trip, activeDayIdx, onUpdate }) {
                         <div
                           ref={provided.innerRef}
                           {...provided.draggableProps}
-                          className={`relative pl-8 group ${snapshot.isDragging ? 'opacity-70 rotate-1 z-50' : ''}`}
+                          // UI優化：拖曳時增加反饋 (旋轉、縮放、層級)
+                          className={`relative pl-8 group transition-all duration-200 ${
+                            snapshot.isDragging ? 'z-50 scale-105 opacity-90 rotate-1' : ''
+                          }`}
                           style={{ ...provided.draggableProps.style }}
                         >
-                          <div className={`absolute left-0 top-1 w-3 h-3 rounded-full border-2 border-white z-10 ${item.highlight ? 'bg-zen-red ring-4 ring-red-100' : 'bg-gray-400'}`}></div>
+                          <div className={`absolute left-0 top-4 w-3 h-3 rounded-full border-2 border-white z-10 shadow-sm ${item.highlight ? 'bg-zen-red ring-2 ring-red-100' : 'bg-gray-300'}`}></div>
                           
-                          <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-50 hover:shadow-md transition-shadow relative">
-                            {/* 拖拉把手 */}
-                            <div {...provided.dragHandleProps} className="absolute left-2 top-1/2 -translate-y-1/2 p-2 text-gray-300 hover:text-gray-500 cursor-grab active:cursor-grabbing">
+                          <div className={`bg-white p-4 rounded-2xl border transition-all relative ${
+                              snapshot.isDragging ? 'shadow-2xl border-zen-text/20' : 'shadow-sm border-gray-50 hover:shadow-md hover:border-gray-200'
+                          }`}>
+                            
+                            {/* 拖拉把手 (Grip) */}
+                            <div {...provided.dragHandleProps} className="absolute left-2 top-1/2 -translate-y-1/2 p-2 text-gray-200 hover:text-gray-400 cursor-grab active:cursor-grabbing touch-none">
                                 <GripVertical size={16} />
                             </div>
 
-                            <div className="absolute top-3 right-3 flex gap-2 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
-                                <button onClick={() => {setEditingItem(item); setShowItemModal(true)}} className="p-1.5 bg-gray-100 rounded-full text-gray-500 hover:text-blue-600"><Edit2 size={14} /></button>
-                                <button onClick={() => handleDeleteItem(idx)} className="p-1.5 bg-gray-100 rounded-full text-gray-500 hover:text-red-500"><Trash2 size={14} /></button>
-                            </div>
-
-                            <div className="flex flex-col gap-1 mb-2 pl-4">
-                                <div className="flex items-center gap-2">
-                                    <span className="text-xs font-mono font-bold text-gray-400">{item.time}</span>
-                                    <span className={`p-1 rounded text-[10px] ${TYPE_COLORS[item.type] || TYPE_COLORS.other}`}>{TYPE_ICONS[item.type] || TYPE_ICONS.other}</span>
-                                    {/* 顯示時區 */}
-                                    {item.timezone && item.timezone !== trip.timezone && (
-                                        <span className="text-[9px] bg-gray-100 px-1 rounded text-gray-500 flex items-center gap-0.5"><Globe size={8}/> {item.timezone}</span>
-                                    )}
+                            <div className="pl-5">
+                                <div className="flex justify-between items-start mb-1">
+                                    <div className="flex items-center gap-2">
+                                        <div className="bg-gray-100 px-2 py-0.5 rounded-md text-xs font-mono font-bold text-gray-600">
+                                            {item.time}
+                                        </div>
+                                        {/* 時區顯示優化 */}
+                                        {item.timezone && item.timezone !== trip.timezone && (
+                                            <span className="text-[9px] border border-gray-200 px-1 rounded text-gray-400 flex items-center gap-0.5">
+                                                <Globe size={8}/> {item.timezone.split('/')[1] || item.timezone}
+                                            </span>
+                                        )}
+                                    </div>
+                                    <div className="flex gap-1">
+                                        <button onClick={() => {setEditingItem(item); setShowItemModal(true)}} className="p-1.5 text-gray-300 hover:text-blue-500 hover:bg-blue-50 rounded-full transition-colors"><Edit2 size={14} /></button>
+                                        <button onClick={() => handleDeleteItem(idx)} className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors"><Trash2 size={14} /></button>
+                                    </div>
                                 </div>
-                                {item.duration && <span className="text-[10px] text-gray-400 flex items-center gap-1"><Clock size={10} /> {item.duration} hr</span>}
+
+                                <div className="flex items-center gap-2 mb-1">
+                                    <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${TYPE_COLORS[item.type] || TYPE_COLORS.other}`}>
+                                        {TYPE_ICONS[item.type] || TYPE_ICONS.other}
+                                    </span>
+                                    <h3 className={`text-base font-bold ${item.highlight ? 'text-zen-red' : 'text-zen-text'}`}>{item.title}</h3>
+                                </div>
+                                
+                                <div className="flex flex-wrap gap-2 text-xs text-gray-400 items-center">
+                                   {item.duration && <span className="flex items-center gap-1 bg-gray-50 px-1.5 py-0.5 rounded"><Clock size={10} /> {item.duration}h</span>}
+                                   {item.address && (
+                                     <a href={`http://googleusercontent.com/maps.google.com/?q=${encodeURIComponent(item.address)}`} target="_blank" rel="noreferrer" className="flex items-center gap-1 hover:text-blue-500 transition-colors">
+                                       <MapPin size={10}/> {item.address.length > 8 ? item.address.slice(0,8) + '...' : item.address}
+                                     </a>
+                                   )}
+                                </div>
+
+                                {item.tips && <div className="mt-2 text-xs text-gray-500 bg-zen-bg p-2 rounded-lg border border-dashed border-gray-200">💡 {item.tips}</div>}
                             </div>
-                            
-                            <h3 className={`text-lg font-bold mb-1 pl-4 ${item.highlight ? 'text-zen-red' : 'text-zen-text'}`}>{item.title}</h3>
-                            
-                            <div className="text-xs text-gray-400 mb-2 flex items-center gap-1 pl-4">
-                              <MapPin size={10}/> 
-                              {item.address ? <a href={`http://googleusercontent.com/maps.google.com/?q=${encodeURIComponent(item.address)}`} target="_blank" rel="noreferrer" className="underline decoration-dotted hover:text-blue-600">{item.address}</a> : '未設定地點'}
-                            </div>
-                            
-                            {item.tips && <div className="mt-2 ml-4 p-3 bg-zen-bg rounded-xl border border-gray-100 text-xs text-gray-600 leading-relaxed">💡 {item.tips}</div>}
                           </div>
                         </div>
                       )}
@@ -463,7 +481,7 @@ function PlanView({ trip, activeDayIdx, onUpdate }) {
   );
 }
 
-// --- 記帳視圖 (保持不變) ---
+// --- 記帳視圖 (整合UI優化 - Bottom Sheet) ---
 function BudgetView({ trip, expenses, categories, onAddExpense, onDeleteExpense, onUpdateTrip }) {
     const [showAddModal, setShowAddModal] = useState(false);
     const totalSpentTWD = expenses.reduce((acc, curr) => acc + (parseFloat(curr.twdAmount) || 0), 0);
@@ -551,7 +569,7 @@ function BudgetView({ trip, expenses, categories, onAddExpense, onDeleteExpense,
     );
 }
 
-// --- 其餘 Modal 與 View (整合時區) ---
+// --- UI優化：ItemModal (Bottom Sheet) ---
 function ItemModal({ initialData, defaultTime, tripTimezone, onClose, onSave }) {
   const defaultTz = initialData?.timezone || tripTimezone || 'Asia/Taipei';
   const [formData, setFormData] = useState(initialData || { 
@@ -560,21 +578,28 @@ function ItemModal({ initialData, defaultTime, tripTimezone, onClose, onSave }) 
   const handleChange = (e) => { const { name, value, type, checked } = e.target; setFormData(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value })); };
   
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] flex items-end sm:items-center justify-center sm:p-4">
-      <div className="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl animate-slide-up sm:animate-fade-in max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-[2px] z-[60] flex items-end justify-center transition-opacity" onClick={onClose}>
+      <div 
+        onClick={e => e.stopPropagation()} 
+        className="bg-white w-full sm:max-w-md rounded-t-[2rem] p-6 shadow-[0_-10px_40px_rgba(0,0,0,0.2)] animate-slide-up max-h-[85vh] overflow-y-auto pb-10"
+      >
+        <div className="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mb-6"></div>
         <div className="flex justify-between items-center mb-6">
-          <h3 className="text-xl font-serif font-bold text-zen-text">{initialData ? '編輯行程' : '新增行程'}</h3>
-          <button onClick={onClose}><X size={24} className="text-gray-400" /></button>
+          <h3 className="text-xl font-serif font-bold text-zen-text flex items-center gap-2">
+            {initialData ? <Edit2 size={18}/> : <Plus size={18}/>} 
+            {initialData ? '編輯行程' : '新增行程'}
+          </h3>
+          <button onClick={onClose} className="bg-gray-100 p-2 rounded-full hover:bg-gray-200 transition-colors"><X size={20} className="text-gray-500" /></button>
         </div>
-        <form onSubmit={(e) => { e.preventDefault(); onSave(formData); }} className="space-y-4">
+        <form onSubmit={(e) => { e.preventDefault(); onSave(formData); }} className="space-y-5">
           <div className="grid grid-cols-2 gap-4">
             <div>
                 <label className="text-xs font-bold text-gray-500 uppercase">時間</label>
-                <input type="time" name="time" value={formData.time} onChange={handleChange} className="w-full mt-1 p-3 bg-gray-50 rounded-xl outline-none focus:ring-2 focus:ring-zen-text" />
+                <input type="time" name="time" value={formData.time} onChange={handleChange} className="w-full mt-1 p-4 bg-gray-50 rounded-2xl outline-none focus:ring-2 focus:ring-zen-text" />
             </div>
             <div>
                 <label className="text-xs font-bold text-gray-500 uppercase">時區</label>
-                <select name="timezone" value={formData.timezone} onChange={handleChange} className="w-full mt-1 p-3 bg-gray-50 rounded-xl outline-none focus:ring-2 focus:ring-zen-text text-sm">
+                <select name="timezone" value={formData.timezone} onChange={handleChange} className="w-full mt-1 p-4 bg-gray-50 rounded-2xl outline-none focus:ring-2 focus:ring-zen-text text-sm appearance-none">
                     <option value="Asia/Taipei">台北 (GMT+8)</option>
                     <option value="Asia/Tokyo">東京 (GMT+9)</option>
                     <option value="Asia/Seoul">首爾 (GMT+9)</option>
@@ -586,14 +611,17 @@ function ItemModal({ initialData, defaultTime, tripTimezone, onClose, onSave }) 
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
-             <div><label className="text-xs font-bold text-gray-500 uppercase">停留 (小時)</label><input type="number" step="0.5" name="duration" value={formData.duration} onChange={handleChange} className="w-full mt-1 p-3 bg-gray-50 rounded-xl outline-none focus:ring-2 focus:ring-zen-text" /></div>
-             <div><label className="text-xs font-bold text-gray-500 uppercase">類型</label><select name="type" value={formData.type} onChange={handleChange} className="w-full mt-1 p-3 bg-gray-50 rounded-xl outline-none focus:ring-2 focus:ring-zen-text appearance-none"><option value="spot">📸 景點</option><option value="food">🍴 餐廳</option><option value="transport">🚗 交通</option><option value="stay">🏠 住宿</option><option value="relax">💆 放鬆</option><option value="work">💼 工作</option></select></div>
+             <div><label className="text-xs font-bold text-gray-500 uppercase">停留 (小時)</label><input type="number" step="0.5" name="duration" value={formData.duration} onChange={handleChange} className="w-full mt-1 p-4 bg-gray-50 rounded-2xl outline-none focus:ring-2 focus:ring-zen-text" /></div>
+             <div><label className="text-xs font-bold text-gray-500 uppercase">類型</label><select name="type" value={formData.type} onChange={handleChange} className="w-full mt-1 p-4 bg-gray-50 rounded-2xl outline-none focus:ring-2 focus:ring-zen-text appearance-none"><option value="spot">📸 景點</option><option value="food">🍴 餐廳</option><option value="transport">🚗 交通</option><option value="stay">🏠 住宿</option><option value="relax">💆 放鬆</option><option value="work">💼 工作</option></select></div>
           </div>
-          <div><label className="text-xs font-bold text-gray-500 uppercase">標題</label><input required type="text" name="title" value={formData.title} onChange={handleChange} placeholder="例：清水寺" className="w-full mt-1 p-3 bg-gray-50 rounded-xl outline-none focus:ring-2 focus:ring-zen-text" /></div>
-          <div><label className="text-xs font-bold text-gray-500 uppercase">地點 / 地址</label><input type="text" name="address" value={formData.address} onChange={handleChange} placeholder="輸入地址，點擊可導航" className="w-full mt-1 p-3 bg-gray-50 rounded-xl outline-none focus:ring-2 focus:ring-zen-text" /></div>
-          <div><label className="text-xs font-bold text-gray-500 uppercase">筆記 (Tips)</label><textarea name="tips" rows="3" value={formData.tips} onChange={handleChange} placeholder="必吃菜單、預約號碼..." className="w-full mt-1 p-3 bg-gray-50 rounded-xl outline-none focus:ring-2 focus:ring-zen-text" /></div>
+          <div><label className="text-xs font-bold text-gray-500 uppercase">標題</label><input required type="text" name="title" value={formData.title} onChange={handleChange} placeholder="例：清水寺" className="w-full mt-1 p-4 bg-gray-50 rounded-2xl outline-none focus:ring-2 focus:ring-zen-text" /></div>
+          <div><label className="text-xs font-bold text-gray-500 uppercase">地點 / 地址</label><input type="text" name="address" value={formData.address} onChange={handleChange} placeholder="輸入地址，點擊可導航" className="w-full mt-1 p-4 bg-gray-50 rounded-2xl outline-none focus:ring-2 focus:ring-zen-text" /></div>
+          <div><label className="text-xs font-bold text-gray-500 uppercase">筆記 (Tips)</label><textarea name="tips" rows="3" value={formData.tips} onChange={handleChange} placeholder="必吃菜單、預約號碼..." className="w-full mt-1 p-4 bg-gray-50 rounded-2xl outline-none focus:ring-2 focus:ring-zen-text" /></div>
           <div className="flex items-center gap-2 p-3 bg-red-50 rounded-xl text-red-800"><input type="checkbox" name="highlight" id="highlight" checked={formData.highlight} onChange={handleChange} className="w-4 h-4 accent-red-600"/><label htmlFor="highlight" className="text-sm font-bold">設為重點行程 (Highlight)</label></div>
-          <button type="submit" className="w-full bg-zen-text text-white py-3 rounded-xl font-bold mt-2">儲存</button>
+          
+          <button type="submit" className="w-full bg-zen-text text-white py-4 rounded-2xl font-bold text-lg shadow-lg shadow-gray-200 active:scale-95 transition-transform mt-4">
+             {initialData ? '儲存變更' : '新增行程'}
+          </button>
         </form>
       </div>
     </div>
@@ -605,27 +633,28 @@ function AddTripModal({ onClose, onSave }) {
     title: '', dates: '', timezone: 'Asia/Taipei', coverImage: 'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=800&q=80' 
   });
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
-      <div className="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl animate-fade-in">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-[2px] z-[60] flex items-center justify-center p-4">
+      <div className="bg-white rounded-[2rem] p-8 w-full max-w-sm shadow-2xl animate-fade-in">
         <div className="flex justify-between items-center mb-6">
           <h3 className="text-xl font-serif font-bold text-zen-text">新增旅程</h3>
           <button onClick={onClose}><X size={24} className="text-gray-400" /></button>
         </div>
         <form onSubmit={(e) => { e.preventDefault(); onSave({ id: Date.now().toString(), ...formData, days: [] }); }} className="space-y-4">
-          <input required type="text" placeholder="旅程名稱" className="w-full p-3 bg-gray-50 rounded-xl border-none outline-none" onChange={e => setFormData({...formData, title: e.target.value})} />
-          <input required type="text" placeholder="日期 (例: 2025.10.10)" className="w-full p-3 bg-gray-50 rounded-xl border-none outline-none" onChange={e => setFormData({...formData, dates: e.target.value})} />
+          <input required type="text" placeholder="旅程名稱" className="w-full p-4 bg-gray-50 rounded-2xl border-none outline-none focus:ring-2 focus:ring-zen-text" onChange={e => setFormData({...formData, title: e.target.value})} />
+          <input required type="text" placeholder="日期 (例: 2025.10.10)" className="w-full p-4 bg-gray-50 rounded-2xl border-none outline-none focus:ring-2 focus:ring-zen-text" onChange={e => setFormData({...formData, dates: e.target.value})} />
           <div className="relative">
-             <span className="absolute right-3 top-3 text-gray-400 text-xs">預設時區</span>
-             <input type="text" placeholder="時區 (例: Asia/Tokyo)" className="w-full p-3 bg-gray-50 rounded-xl border-none outline-none" value={formData.timezone} onChange={e => setFormData({...formData, timezone: e.target.value})} />
+             <span className="absolute right-4 top-4 text-gray-400 text-xs pointer-events-none">預設時區</span>
+             <input type="text" placeholder="Asia/Taipei" className="w-full p-4 bg-gray-50 rounded-2xl border-none outline-none focus:ring-2 focus:ring-zen-text" value={formData.timezone} onChange={e => setFormData({...formData, timezone: e.target.value})} />
           </div>
-          <input type="text" placeholder="圖片 URL" className="w-full p-3 bg-gray-50 rounded-xl border-none outline-none" onChange={e => setFormData({...formData, coverImage: e.target.value || formData.coverImage})} />
-          <button type="submit" className="w-full bg-zen-text text-white py-3 rounded-xl font-bold"><Save size={18} className="inline mr-2"/> 建立</button>
+          <input type="text" placeholder="圖片 URL (Optional)" className="w-full p-4 bg-gray-50 rounded-2xl border-none outline-none focus:ring-2 focus:ring-zen-text" onChange={e => setFormData({...formData, coverImage: e.target.value || formData.coverImage})} />
+          <button type="submit" className="w-full bg-zen-text text-white py-4 rounded-2xl font-bold mt-2 shadow-lg hover:shadow-xl transition-shadow"><Save size={18} className="inline mr-2"/> 建立</button>
         </form>
       </div>
     </div>
   )
 }
 
+// --- UI優化：AddExpenseModal (Bottom Sheet) ---
 function AddExpenseModal({ tripId, categories, onClose, onSave }) {
     const [formData, setFormData] = useState({
       amount: '', currency: 'JPY', rate: '0.22', twdAmount: 0,
@@ -649,8 +678,12 @@ function AddExpenseModal({ tripId, categories, onClose, onSave }) {
     };
   
     return (
-      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] flex items-end sm:items-center justify-center sm:p-4">
-        <div className="bg-white w-full sm:max-w-lg rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl animate-slide-up sm:animate-fade-in max-h-[90vh] overflow-y-auto">
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-[2px] z-[60] flex items-end justify-center transition-opacity" onClick={onClose}>
+        <div 
+          onClick={e => e.stopPropagation()} 
+          className="bg-white w-full sm:max-w-lg rounded-t-[2rem] p-6 shadow-[0_-10px_40px_rgba(0,0,0,0.2)] animate-slide-up max-h-[85vh] overflow-y-auto pb-10"
+        >
+          <div className="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mb-6"></div>
           <div className="flex justify-between items-center mb-6">
             <h3 className="text-xl font-serif font-bold text-zen-text">新增支出</h3>
             <button onClick={onClose}><X size={24} className="text-gray-400" /></button>
@@ -669,11 +702,11 @@ function AddExpenseModal({ tripId, categories, onClose, onSave }) {
             <div className="relative">
                <label className="text-xs font-bold text-gray-500 uppercase mb-1 block">主分類</label>
                <div className="flex gap-2">
-                  <input type="text" name="category" value={formData.category} onChange={handleChange} onFocus={() => setShowCategoryList(true)} placeholder="輸入或選擇分類" className="flex-1 p-3 bg-gray-50 rounded-xl outline-none focus:ring-2 focus:ring-zen-text" />
-                  <button type="button" onClick={() => setShowCategoryList(!showCategoryList)} className="p-3 bg-gray-100 rounded-xl"><ChevronDown size={20} className="text-gray-500"/></button>
+                  <input type="text" name="category" value={formData.category} onChange={handleChange} onFocus={() => setShowCategoryList(true)} placeholder="輸入或選擇分類" className="flex-1 p-4 bg-gray-50 rounded-2xl outline-none focus:ring-2 focus:ring-zen-text" />
+                  <button type="button" onClick={() => setShowCategoryList(!showCategoryList)} className="p-4 bg-gray-100 rounded-2xl"><ChevronDown size={20} className="text-gray-500"/></button>
                </div>
                {showCategoryList && (
-                 <div className="absolute z-10 w-full mt-2 bg-white rounded-xl shadow-xl border border-gray-100 max-h-40 overflow-y-auto p-2 grid grid-cols-3 gap-2">
+                 <div className="absolute z-10 w-full mt-2 bg-white rounded-2xl shadow-xl border border-gray-100 max-h-40 overflow-y-auto p-2 grid grid-cols-3 gap-2">
                    {categories.filter(c => c.includes(formData.category)).map(cat => (
                      <button key={cat} type="button" onClick={() => handleCategorySelect(cat)} className="p-2 text-sm bg-gray-50 hover:bg-zen-text hover:text-white rounded-lg transition-colors text-center">{cat}</button>
                    ))}
@@ -681,12 +714,12 @@ function AddExpenseModal({ tripId, categories, onClose, onSave }) {
                )}
             </div>
             <div className="grid grid-cols-2 gap-4">
-               <div><label className="text-xs font-bold text-gray-500 uppercase">項目名稱</label><input type="text" name="title" placeholder="例: 一蘭拉麵" className="w-full mt-1 p-2 bg-gray-50 rounded-xl outline-none border-none" value={formData.title} onChange={handleChange} /></div>
-               <div><label className="text-xs font-bold text-gray-500 uppercase">副分類</label><input type="text" name="subCategory" placeholder="例: 晚餐" className="w-full mt-1 p-2 bg-gray-50 rounded-xl outline-none border-none" value={formData.subCategory} onChange={handleChange} /></div>
-               <div><label className="text-xs font-bold text-gray-500 uppercase">付款方式</label><select name="paymentMethod" value={formData.paymentMethod} onChange={handleChange} className="w-full mt-1 p-2 bg-gray-50 rounded-xl outline-none border-none">{PAYMENT_METHODS.map(m => <option key={m} value={m}>{m}</option>)}</select></div>
-               <div><label className="text-xs font-bold text-gray-500 uppercase">日期</label><input type="date" name="date" className="w-full mt-1 p-2 bg-gray-50 rounded-xl outline-none border-none" value={formData.date} onChange={handleChange} /></div>
+               <div><label className="text-xs font-bold text-gray-500 uppercase">項目名稱</label><input type="text" name="title" placeholder="例: 一蘭拉麵" className="w-full mt-1 p-4 bg-gray-50 rounded-2xl outline-none border-none" value={formData.title} onChange={handleChange} /></div>
+               <div><label className="text-xs font-bold text-gray-500 uppercase">副分類</label><input type="text" name="subCategory" placeholder="例: 晚餐" className="w-full mt-1 p-4 bg-gray-50 rounded-2xl outline-none border-none" value={formData.subCategory} onChange={handleChange} /></div>
+               <div><label className="text-xs font-bold text-gray-500 uppercase">付款方式</label><select name="paymentMethod" value={formData.paymentMethod} onChange={handleChange} className="w-full mt-1 p-4 bg-gray-50 rounded-2xl outline-none border-none">{PAYMENT_METHODS.map(m => <option key={m} value={m}>{m}</option>)}</select></div>
+               <div><label className="text-xs font-bold text-gray-500 uppercase">日期</label><input type="date" name="date" className="w-full mt-1 p-4 bg-gray-50 rounded-2xl outline-none border-none" value={formData.date} onChange={handleChange} /></div>
             </div>
-            <button type="submit" className="w-full bg-zen-text text-white py-3 rounded-xl font-bold mt-2">儲存支出</button>
+            <button type="submit" className="w-full bg-zen-text text-white py-4 rounded-2xl font-bold mt-4 shadow-lg active:scale-95 transition-transform">儲存支出</button>
           </form>
         </div>
       </div>
