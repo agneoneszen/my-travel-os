@@ -4,7 +4,7 @@ import {
   MapPin, Calendar, ArrowLeft, Plus, X, Save, 
   Trash2, Edit2, Utensils, Car, Camera, Coffee, Bed, Briefcase, Clock,
   Map, List, Calculator, CheckSquare, Wallet, PieChart, 
-  Globe, ChevronDown, LogIn, LogOut, CloudUpload, GripVertical, Search
+  Globe, ChevronDown, LogIn, LogOut, CloudUpload, GripVertical, Search, Plane // ⬅️ 請確保這幾個都在
 } from 'lucide-react';
 
 // --- Firebase 相關引入 ---
