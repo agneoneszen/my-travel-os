@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { 
   MapPin, Calendar, ArrowLeft, Plus, X, Save, 
   Trash2, Edit2, Utensils, Car, Camera, Coffee, Bed, Briefcase, Clock,
-  Map, List, Calculator, CheckSquare, Wallet, PieChart, 
-  Globe, ChevronDown, LogIn, LogOut, CloudUpload, GripVertical, Search, Plane // ⬅️ 請確保這幾個都在
+  Map, List, Wallet, PieChart, Image,
+  Globe, ChevronDown, LogIn, LogOut, CloudUpload, GripVertical
 } from 'lucide-react';
 
 // --- Firebase 相關引入 ---
@@ -122,6 +122,19 @@ export default function App() {
     if (!user) return;
     await updateDoc(doc(db, "trips", updatedTrip.id), updatedTrip);
   };
+  
+  // 功能：更新封面圖片
+  const handleUpdateImage = async (e, trip) => {
+    e.stopPropagation();
+    const action = window.prompt("請選擇操作：\n1. 變更圖片 URL\n2. 刪除圖片 (使用預設圖)", "1");
+    if (action === '1') {
+        const newUrl = window.prompt("請輸入新的圖片 URL：", trip.coverImage);
+        if(newUrl) await handleUpdateTrip({...trip, coverImage: newUrl});
+    } else if (action === '2') {
+        await handleUpdateTrip({...trip, coverImage: 'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=800&q=80'});
+    }
+  };
+
   const handleDeleteTrip = async (e, id) => {
     e.stopPropagation();
     if (window.confirm('刪除整個旅程？')) await deleteDoc(doc(db, "trips", id));
@@ -130,6 +143,11 @@ export default function App() {
     if (!user) return;
     const { id, ...expData } = newExpense;
     await addDoc(collection(db, "expenses"), { ...expData, uid: user.uid });
+  };
+  // 功能：更新支出
+  const handleUpdateExpense = async (updatedExpense) => {
+    if (!user) return;
+    await updateDoc(doc(db, "expenses", updatedExpense.id), updatedExpense);
   };
   const handleDeleteExpense = async (id) => {
     if(window.confirm('刪除此帳目？')) await deleteDoc(doc(db, "expenses", id));
@@ -140,7 +158,7 @@ export default function App() {
     return (
       <div className="min-h-screen bg-[#F5F5F7] flex flex-col items-center justify-center p-6">
         <div className="w-20 h-20 bg-black rounded-[2rem] flex items-center justify-center mb-6 shadow-xl shadow-black/10">
-            <Plane className="text-white" size={40} />
+            <span className="text-3xl">✈️</span>
         </div>
         <h1 className="text-3xl font-bold text-gray-800 tracking-tight mb-2">Travel OS</h1>
         <p className="text-gray-400 mb-10 text-sm">你的極簡旅行與記帳助手</p>
@@ -176,7 +194,10 @@ export default function App() {
                          <span className="bg-white/20 backdrop-blur-md px-2 py-1 rounded-lg flex items-center gap-1"><Calendar size={10} /> {trip.dates}</span>
                          {trip.timezone && <span className="bg-white/20 backdrop-blur-md px-2 py-1 rounded-lg flex items-center gap-1"><Globe size={10} /> {trip.timezone}</span>}
                       </div>
-                      <button onClick={(e) => handleDeleteTrip(e, trip.id)} className="text-white/50 hover:text-red-400 p-2"><Trash2 size={16} /></button>
+                      <div className="flex gap-2">
+                         <button onClick={(e) => handleUpdateImage(e, trip)} className="text-white/70 hover:text-white bg-black/20 p-2 rounded-full backdrop-blur-md"><Image size={14} /></button>
+                         <button onClick={(e) => handleDeleteTrip(e, trip.id)} className="text-white/70 hover:text-red-400 bg-black/20 p-2 rounded-full backdrop-blur-md"><Trash2 size={14} /></button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -202,6 +223,9 @@ export default function App() {
   }
 
   const trip = allTrips.find(t => t.id === currentTripId);
+  // 安全檢查：如果 trip 被刪除了但 currentTripId 還在
+  if (!trip && currentTripId) { setCurrentTripId(null); return null; }
+  
   const currentTripExpenses = expenses.filter(ex => ex.tripId === trip.id || (trip.legacyId && ex.tripId === trip.legacyId));
 
   return (
@@ -213,12 +237,13 @@ export default function App() {
       onUpdate={handleUpdateTrip} 
       onAddExpense={handleAddExpense}
       onDeleteExpense={handleDeleteExpense}
+      onUpdateExpense={handleUpdateExpense}
     />
   );
 }
 
 // --- 詳細頁面 ---
-function TripDetail({ trip, expenses, categories, onBack, onUpdate, onAddExpense, onDeleteExpense }) {
+function TripDetail({ trip, expenses, categories, onBack, onUpdate, onAddExpense, onDeleteExpense, onUpdateExpense }) {
     const [activeDayIdx, setActiveDayIdx] = useState(0);
     const [activeTab, setActiveTab] = useState('plan'); 
     
@@ -261,6 +286,7 @@ function TripDetail({ trip, expenses, categories, onBack, onUpdate, onAddExpense
                 }`}>
                 <span className="block text-[10px] opacity-60 font-medium mb-0.5">{d.weekday}</span>
                 {d.date}
+                {/* 日期刪除功能 */}
                 {i === activeDayIdx && <button onClick={(e) => handleDeleteDay(e, i)} className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-0.5"><X size={8} /></button>}
               </div>
             ))}
@@ -271,11 +297,18 @@ function TripDetail({ trip, expenses, categories, onBack, onUpdate, onAddExpense
         <div className="animate-fade-in">
           {activeTab === 'plan' && <PlanView trip={trip} activeDayIdx={activeDayIdx} onUpdate={onUpdate} />}
           {activeTab === 'map' && <MapView currentDay={trip.days?.[activeDayIdx] || {schedule:[]}} location={trip.location || 'Japan'} />}
-          {activeTab === 'budget' && <BudgetView trip={trip} expenses={expenses} categories={categories} onAddExpense={onAddExpense} onDeleteExpense={onDeleteExpense} onUpdateTrip={onUpdate} />}
+          {activeTab === 'budget' && <BudgetView 
+              trip={trip} 
+              expenses={expenses} 
+              categories={categories} 
+              onAddExpense={onAddExpense} 
+              onDeleteExpense={onDeleteExpense} 
+              onUpdateTrip={onUpdate}
+              onUpdateExpense={onUpdateExpense}
+            />}
           {activeTab === 'tools' && <ToolboxView />}
         </div>
   
-        {/* 底部導航 (iOS Style) */}
         <div className="fixed bottom-0 w-full bg-white/80 backdrop-blur-xl border-t border-gray-200 flex justify-around items-center pb-8 pt-3 z-50">
           <TabButton icon={List} label="行程" isActive={activeTab === 'plan'} onClick={() => setActiveTab('plan')} />
           <TabButton icon={Map} label="地圖" isActive={activeTab === 'map'} onClick={() => setActiveTab('map')} />
@@ -286,7 +319,7 @@ function TripDetail({ trip, expenses, categories, onBack, onUpdate, onAddExpense
     );
 }
 
-// --- 行程列表 (Draggable) ---
+// --- 行程列表 (Draggable - 關鍵修復：確保 DragDropContext 存在且手把清晰) ---
 function PlanView({ trip, activeDayIdx, onUpdate }) {
   const [editingItem, setEditingItem] = useState(null);
   const [showItemModal, setShowItemModal] = useState(false);
@@ -318,6 +351,7 @@ function PlanView({ trip, activeDayIdx, onUpdate }) {
     onUpdate({ ...trip, days: newDays });
   };
 
+  // 拖拉邏輯
   const handleDragEnd = (result) => {
     if (!result.destination) return;
     const items = Array.from(schedule);
@@ -338,6 +372,7 @@ function PlanView({ trip, activeDayIdx, onUpdate }) {
       {!currentDay ? <div className="text-center py-20 text-gray-400 text-xs">請先選擇日期</div> : (
         <>
           {schedule.length === 0 && <div className="text-center py-12 text-gray-400 text-xs">尚無行程</div>}
+          
           <DragDropContext onDragEnd={handleDragEnd}>
             <Droppable droppableId="schedule-list">
               {(provided) => (
@@ -346,21 +381,25 @@ function PlanView({ trip, activeDayIdx, onUpdate }) {
                     <Draggable key={idx} draggableId={`item-${idx}`} index={idx}>
                       {(provided, snapshot) => (
                         <div ref={provided.innerRef} {...provided.draggableProps} className="relative group">
-                           {/* 左側時間軸線 */}
                            <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-gray-200/50 -z-10"></div>
                            
-                           <div className={`relative bg-white p-4 rounded-2xl border transition-all ${
+                           <div className={`relative bg-white p-4 pl-3 rounded-2xl border transition-all ${
                                 snapshot.isDragging ? 'shadow-2xl scale-105 z-50 border-black/10' : 'shadow-sm border-gray-100 hover:border-gray-300'
                              }`}>
                              <div className="flex justify-between items-start">
-                                 <div className="flex gap-3">
-                                     <div className="flex flex-col items-center gap-1 min-w-[3rem]">
+                                 {/* 拖拉手把 (移到左側更符合直覺) */}
+                                 <div {...provided.dragHandleProps} className="p-2 mr-1 text-gray-300 active:text-black cursor-grab touch-none">
+                                     <GripVertical size={16}/>
+                                 </div>
+
+                                 <div className="flex-1 flex gap-3">
+                                     <div className="flex flex-col items-center gap-1 min-w-[3rem] pt-1">
                                         <span className="text-sm font-bold font-mono text-gray-700">{item.time}</span>
                                         {item.duration && <span className="text-[9px] text-gray-400 bg-gray-50 px-1 rounded">{item.duration}h</span>}
                                      </div>
-                                     <div>
-                                        <h3 className={`font-bold text-gray-800 ${item.highlight ? 'text-red-500' : ''}`}>{item.title}</h3>
-                                        <div className="flex items-center gap-2 mt-1">
+                                     <div className="flex-1 min-w-0">
+                                        <h3 className={`font-bold text-gray-800 truncate ${item.highlight ? 'text-red-500' : ''}`}>{item.title}</h3>
+                                        <div className="flex flex-wrap items-center gap-2 mt-1">
                                             <span className={`text-[9px] px-1.5 py-0.5 rounded border flex items-center gap-1 ${TYPE_COLORS[item.type] || TYPE_COLORS.other}`}>
                                                 {TYPE_ICONS[item.type] || TYPE_ICONS.other}
                                             </span>
@@ -370,15 +409,15 @@ function PlanView({ trip, activeDayIdx, onUpdate }) {
                                                 </span>
                                             )}
                                         </div>
-                                        {item.address && <div className="text-[10px] text-gray-400 mt-1 flex items-center gap-1 truncate max-w-[150px]"><MapPin size={8}/> {item.address}</div>}
+                                        {item.address && <div className="text-[10px] text-gray-400 mt-1 flex items-center gap-1 truncate"><MapPin size={8}/> {item.address}</div>}
                                      </div>
                                  </div>
-                                 <div className="flex flex-col items-end gap-2">
-                                     <div {...provided.dragHandleProps} className="p-1.5 text-gray-300 active:text-gray-600"><GripVertical size={14}/></div>
-                                     <button onClick={() => {setEditingItem(item); setShowItemModal(true)}} className="p-1.5 text-gray-300 hover:text-blue-500"><Edit2 size={12}/></button>
+                                 <div className="flex flex-col gap-1 pl-2">
+                                     <button onClick={() => {setEditingItem(item); setShowItemModal(true)}} className="p-1.5 text-gray-300 hover:text-blue-500"><Edit2 size={14}/></button>
+                                     <button onClick={() => handleDeleteItem(idx)} className="p-1.5 text-gray-300 hover:text-red-500"><Trash2 size={14}/></button>
                                  </div>
                              </div>
-                             {item.tips && <div className="mt-2 text-[10px] text-gray-500 bg-gray-50 p-2 rounded-lg">💡 {item.tips}</div>}
+                             {item.tips && <div className="mt-2 ml-8 text-[10px] text-gray-500 bg-gray-50 p-2 rounded-lg">💡 {item.tips}</div>}
                            </div>
                         </div>
                       )}
@@ -397,7 +436,7 @@ function PlanView({ trip, activeDayIdx, onUpdate }) {
   );
 }
 
-// --- 優化版彈窗 (ItemModal) - 重點修正 ---
+// --- 編輯/新增行程彈窗 ---
 function ItemModal({ initialData, tripTimezone, onClose, onSave }) {
   const defaultTz = initialData?.timezone || tripTimezone || 'Asia/Taipei';
   const [formData, setFormData] = useState(initialData || { 
@@ -409,45 +448,35 @@ function ItemModal({ initialData, tripTimezone, onClose, onSave }) {
     <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[60] flex items-end sm:items-center justify-center" onClick={onClose}>
       <div onClick={e => e.stopPropagation()} className="bg-white w-full sm:max-w-md rounded-t-[2rem] sm:rounded-[2rem] p-6 shadow-2xl animate-slide-up max-h-[85vh] overflow-y-auto">
         <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-6 sm:hidden"></div>
-        
         <div className="flex justify-between items-center mb-6">
            <h3 className="text-lg font-bold text-gray-800">{initialData ? '編輯行程' : '新增行程'}</h3>
            <button onClick={onClose} className="bg-gray-100 p-2 rounded-full"><X size={18} className="text-gray-500"/></button>
         </div>
-
         <form onSubmit={(e) => { e.preventDefault(); onSave(formData); }} className="space-y-4">
-           {/* 時間與時區 - 並排緊湊版 */}
            <div className="flex gap-3">
               <div className="flex-1">
                  <label className="text-[10px] font-bold text-gray-400 uppercase mb-1 block">時間</label>
-                 <div className="relative">
-                    <input type="time" name="time" value={formData.time} onChange={handleChange} className="w-full pl-9 pr-3 py-3 bg-gray-50 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-black" />
-                    <Clock size={14} className="absolute left-3 top-3.5 text-gray-400"/>
-                 </div>
+                 <div className="relative"><input type="time" name="time" value={formData.time} onChange={handleChange} className="w-full pl-9 pr-3 py-3 bg-gray-50 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-black" /><Clock size={14} className="absolute left-3 top-3.5 text-gray-400"/></div>
               </div>
               <div className="flex-1">
                  <label className="text-[10px] font-bold text-gray-400 uppercase mb-1 block">時區</label>
                  <div className="relative">
                     <select name="timezone" value={formData.timezone} onChange={handleChange} className="w-full pl-9 pr-3 py-3 bg-gray-50 rounded-xl text-xs font-bold outline-none appearance-none focus:ring-2 focus:ring-black">
-                        <option value="Asia/Taipei">台北</option>
-                        <option value="Asia/Tokyo">東京</option>
-                        <option value="Asia/Seoul">首爾</option>
-                        <option value="Asia/Bangkok">曼谷</option>
-                        <option value="Europe/London">倫敦</option>
-                        <option value="America/New_York">紐約</option>
+                        <option value="Asia/Taipei">台北 (GMT+8)</option>
+                        <option value="Asia/Tokyo">東京 (GMT+9)</option>
+                        <option value="Asia/Seoul">首爾 (GMT+9)</option>
+                        <option value="Asia/Bangkok">曼谷 (GMT+7)</option>
+                        <option value="Europe/London">倫敦 (GMT+0)</option>
+                        <option value="America/New_York">紐約 (GMT-5)</option>
                     </select>
                     <Globe size={14} className="absolute left-3 top-3.5 text-gray-400"/>
                  </div>
               </div>
            </div>
-
-           {/* 標題 */}
            <div>
               <label className="text-[10px] font-bold text-gray-400 uppercase mb-1 block">標題</label>
               <input required type="text" name="title" value={formData.title} onChange={handleChange} placeholder="例：清水寺" className="w-full px-4 py-3 bg-gray-50 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-black" />
            </div>
-
-           {/* 類型與時長 */}
            <div className="flex gap-3">
               <div className="flex-1">
                  <label className="text-[10px] font-bold text-gray-400 uppercase mb-1 block">類型</label>
@@ -468,30 +497,19 @@ function ItemModal({ initialData, tripTimezone, onClose, onSave }) {
                  <input type="number" step="0.5" name="duration" value={formData.duration} onChange={handleChange} className="w-full px-3 py-3 bg-gray-50 rounded-xl text-sm font-bold outline-none text-center focus:ring-2 focus:ring-black" />
               </div>
            </div>
-
-           {/* 地址與筆記 */}
            <div>
                <label className="text-[10px] font-bold text-gray-400 uppercase mb-1 block">地點</label>
-               <div className="relative">
-                  <input type="text" name="address" value={formData.address} onChange={handleChange} placeholder="輸入地址..." className="w-full pl-9 pr-3 py-3 bg-gray-50 rounded-xl text-xs outline-none focus:ring-2 focus:ring-black" />
-                  <MapPin size={14} className="absolute left-3 top-3.5 text-gray-400"/>
-               </div>
+               <div className="relative"><input type="text" name="address" value={formData.address} onChange={handleChange} placeholder="輸入地址..." className="w-full pl-9 pr-3 py-3 bg-gray-50 rounded-xl text-xs outline-none focus:ring-2 focus:ring-black" /><MapPin size={14} className="absolute left-3 top-3.5 text-gray-400"/></div>
            </div>
-           
            <div>
                <label className="text-[10px] font-bold text-gray-400 uppercase mb-1 block">筆記</label>
                <textarea name="tips" rows="2" value={formData.tips} onChange={handleChange} className="w-full px-3 py-2 bg-gray-50 rounded-xl text-xs outline-none focus:ring-2 focus:ring-black resize-none" placeholder="備註..."></textarea>
            </div>
-
-           {/* 重點行程開關 */}
            <label className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl cursor-pointer">
               <input type="checkbox" name="highlight" checked={formData.highlight} onChange={handleChange} className="w-5 h-5 accent-red-500 rounded" />
               <span className="text-xs font-bold text-gray-600">標記為重點行程 🔥</span>
            </label>
-
-           <button type="submit" className="w-full bg-black text-white py-4 rounded-xl font-bold text-sm shadow-lg active:scale-95 transition-transform mt-2">
-             {initialData ? '儲存變更' : '新增行程'}
-           </button>
+           <button type="submit" className="w-full bg-black text-white py-4 rounded-xl font-bold text-sm shadow-lg active:scale-95 transition-transform mt-2">{initialData ? '儲存變更' : '新增行程'}</button>
         </form>
       </div>
     </div>
@@ -499,8 +517,10 @@ function ItemModal({ initialData, tripTimezone, onClose, onSave }) {
 }
 
 // --- 記帳視圖 (BudgetView) ---
-function BudgetView({ trip, expenses, categories, onAddExpense, onDeleteExpense, onUpdateTrip }) {
+function BudgetView({ trip, expenses, categories, onAddExpense, onDeleteExpense, onUpdateTrip, onUpdateExpense }) {
     const [showAddModal, setShowAddModal] = useState(false);
+    const [editingExpense, setEditingExpense] = useState(null);
+    
     const totalSpentTWD = expenses.reduce((acc, curr) => acc + (parseFloat(curr.twdAmount) || 0), 0);
     const budget = trip.budget || 50000; 
     const progress = Math.min((totalSpentTWD / budget) * 100, 100);
@@ -509,10 +529,13 @@ function BudgetView({ trip, expenses, categories, onAddExpense, onDeleteExpense,
       const newBudget = window.prompt("輸入總預算 (TWD)", budget);
       if(newBudget && !isNaN(newBudget)) onUpdateTrip({...trip, budget: parseFloat(newBudget)});
     };
+    
+    const handleOpenEdit = (expense) => { setEditingExpense(expense); };
+    useEffect(() => { if(editingExpense) setShowAddModal(true); }, [editingExpense]);
+    const handleCloseModal = () => { setShowAddModal(false); setEditingExpense(null); }
   
     return (
       <div className="p-4 pb-20 space-y-6">
-        {/* 預算卡片 */}
         <div className="bg-black text-white p-6 rounded-[2rem] shadow-xl relative overflow-hidden">
           <div className="relative z-10">
             <div className="flex justify-between items-center mb-4">
@@ -530,11 +553,9 @@ function BudgetView({ trip, expenses, categories, onAddExpense, onDeleteExpense,
           </div>
           <PieChart className="absolute -bottom-6 -right-6 text-white/5 w-40 h-40" />
         </div>
-  
-        {/* 支出列表 */}
         <div className="space-y-3">
             {expenses.map((item) => (
-                <div key={item.id} className="bg-white p-4 rounded-2xl border border-gray-100 flex justify-between items-center">
+                <div key={item.id} className="bg-white p-4 rounded-2xl border border-gray-100 flex justify-between items-center group">
                     <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center text-lg">{item.category?.[0]}</div>
                         <div>
@@ -542,28 +563,32 @@ function BudgetView({ trip, expenses, categories, onAddExpense, onDeleteExpense,
                             <div className="text-[10px] text-gray-400">{item.category} • {item.date.slice(5)}</div>
                         </div>
                     </div>
-                    <div className="text-right">
-                        <div className="font-bold font-mono text-gray-800">${parseInt(item.twdAmount).toLocaleString()}</div>
-                        <div className="text-[10px] text-gray-400">{item.currency} {item.amount}</div>
+                    <div className="flex items-center gap-2">
+                        <div className="text-right">
+                            <div className="font-bold font-mono text-gray-800">${parseInt(item.twdAmount).toLocaleString()}</div>
+                            <div className="text-[10px] text-gray-400">{item.currency} {item.amount}</div>
+                        </div>
+                        <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+                            <button onClick={() => handleOpenEdit(item)} className="p-1 text-gray-400 hover:text-blue-500"><Edit2 size={14}/></button>
+                            <button onClick={() => onDeleteExpense(item.id)} className="p-1 text-gray-400 hover:text-red-500"><Trash2 size={14}/></button>
+                        </div>
                     </div>
-                    <button onClick={() => onDeleteExpense(item.id)} className="ml-2 text-gray-300 hover:text-red-400"><Trash2 size={14}/></button>
                 </div>
             ))}
             {expenses.length === 0 && <div className="text-center text-gray-400 text-xs py-10">暫無支出紀錄</div>}
         </div>
-  
         <button onClick={() => setShowAddModal(true)} className="w-full bg-black text-white py-4 rounded-2xl font-bold shadow-lg flex items-center justify-center gap-2 active:scale-95 transition-transform"><Plus size={18} /> 記一筆</button>
-        {showAddModal && <AddExpenseModal tripId={trip.id} categories={categories} onClose={() => setShowAddModal(false)} onSave={onAddExpense} />}
+        {showAddModal && <AddExpenseModal tripId={trip.id} categories={categories} initialData={editingExpense} onClose={handleCloseModal} onSave={editingExpense ? onUpdateExpense : onAddExpense} />}
       </div>
     );
 }
 
-// --- 記帳彈窗 (AddExpenseModal) ---
-function AddExpenseModal({ tripId, categories, onClose, onSave }) {
-    const [formData, setFormData] = useState({
+// --- 記帳彈窗 (欄位補齊) ---
+function AddExpenseModal({ tripId, categories, initialData, onClose, onSave }) {
+    const [formData, setFormData] = useState(initialData || {
       amount: '', currency: 'JPY', rate: '0.22', twdAmount: 0,
-      title: '', category: '餐飲', subCategory: '', paymentMethod: '現金',
-      location: '', note: '', date: new Date().toISOString().split('T')[0]
+      title: '', category: '餐飲', paymentMethod: '現金',
+      date: new Date().toISOString().split('T')[0]
     });
     useEffect(() => {
       const amt = parseFloat(formData.amount) || 0;
@@ -572,15 +597,19 @@ function AddExpenseModal({ tripId, categories, onClose, onSave }) {
     }, [formData.amount, formData.rate]);
   
     const handleChange = (e) => { const { name, value } = e.target; setFormData(prev => ({ ...prev, [name]: value })); };
-    const handleSubmit = (e) => { e.preventDefault(); if(!formData.amount) return; onSave({ id: Date.now().toString(), tripId, ...formData }); onClose(); };
+    const handleSubmit = (e) => { 
+      e.preventDefault(); 
+      if(!formData.amount || !formData.title) return;
+      const dataToSave = initialData ? { ...formData, id: initialData.id } : { ...formData, id: Date.now().toString(), tripId };
+      onSave(dataToSave); onClose(); 
+    };
   
     return (
       <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[60] flex items-end justify-center" onClick={onClose}>
         <div onClick={e => e.stopPropagation()} className="bg-white w-full sm:max-w-lg rounded-t-[2rem] p-6 shadow-2xl animate-slide-up max-h-[90vh] overflow-y-auto">
-          <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-6"></div>
-          <div className="flex justify-between items-center mb-6"><h3 className="text-lg font-bold">記一筆</h3><button onClick={onClose}><X size={20} className="text-gray-400"/></button></div>
+          <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-6 sm:hidden"></div>
+          <div className="flex justify-between items-center mb-6"><h3 className="text-lg font-bold">{initialData ? '調整支出' : '新增支出'}</h3><button onClick={onClose}><X size={20} className="text-gray-400"/></button></div>
           <form onSubmit={handleSubmit} className="space-y-4">
-             {/* 金額輸入 */}
              <div className="bg-gray-50 p-4 rounded-2xl flex items-end gap-3">
                  <div className="flex-1">
                     <label className="text-[10px] font-bold text-gray-400">金額</label>
@@ -588,17 +617,19 @@ function AddExpenseModal({ tripId, categories, onClose, onSave }) {
                  </div>
                  <select name="currency" value={formData.currency} onChange={handleChange} className="bg-white px-2 py-1 rounded-lg text-sm font-bold shadow-sm outline-none">{CURRENCIES.map(c => <option key={c.code} value={c.code}>{c.code}</option>)}</select>
              </div>
-             {/* 匯率顯示 */}
              <div className="flex items-center justify-between px-2">
                  <div className="flex items-center gap-2 text-xs text-gray-400">匯率 <input type="number" name="rate" value={formData.rate} onChange={handleChange} className="w-12 bg-gray-100 rounded px-1 text-center text-gray-600"/></div>
                  <div className="text-sm font-bold text-gray-800">≈ TWD {formData.twdAmount.toLocaleString()}</div>
              </div>
-             {/* 分類與項目 */}
              <div className="grid grid-cols-2 gap-3">
+                 <div><label className="text-[10px] text-gray-400 font-bold">項目名稱</label><input type="text" name="title" placeholder="例: 一蘭拉麵" className="w-full p-3 bg-gray-50 rounded-xl text-sm font-bold outline-none" value={formData.title} onChange={handleChange}/></div>
                  <div><label className="text-[10px] text-gray-400 font-bold">分類</label><select name="category" value={formData.category} onChange={handleChange} className="w-full p-3 bg-gray-50 rounded-xl text-sm font-bold outline-none">{categories.map(c => <option key={c} value={c}>{c}</option>)}</select></div>
-                 <div><label className="text-[10px] text-gray-400 font-bold">項目</label><input type="text" name="title" placeholder="例: 拉麵" className="w-full p-3 bg-gray-50 rounded-xl text-sm font-bold outline-none" value={formData.title} onChange={handleChange}/></div>
              </div>
-             <button type="submit" className="w-full bg-black text-white py-4 rounded-xl font-bold shadow-lg mt-2">儲存</button>
+             <div className="grid grid-cols-2 gap-3">
+                 <div><label className="text-[10px] text-gray-400 font-bold">付款方式</label><select name="paymentMethod" value={formData.paymentMethod} onChange={handleChange} className="w-full p-3 bg-gray-50 rounded-xl text-sm font-bold outline-none">{PAYMENT_METHODS.map(m => <option key={m} value={m}>{m}</option>)}</select></div>
+                 <div><label className="text-[10px] text-gray-400 font-bold">日期</label><input type="date" name="date" className="w-full p-3 bg-gray-50 rounded-xl text-sm font-bold outline-none" value={formData.date} onChange={handleChange} /></div>
+             </div>
+             <button type="submit" className="w-full bg-black text-white py-4 rounded-xl font-bold shadow-lg mt-4">{initialData ? '儲存變更' : '儲存支出'}</button>
           </form>
         </div>
       </div>
@@ -622,25 +653,28 @@ function AddTripModal({ onClose, onSave }) {
   )
 }
 
+// --- 地圖視圖 (連結修復) ---
 function MapView({ currentDay, location }) {
     const addresses = currentDay?.schedule?.filter(item => item.address && item.address.length > 2).map(item => encodeURIComponent(item.address)) || [];
-    const routeUrl = addresses.length > 0 ? `http://googleusercontent.com/maps.google.com/dir/${addresses.join('/')}` : `http://googleusercontent.com/maps.google.com/?q=${location}`;
+    let routeUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`;
+    if (addresses.length > 0) {
+        routeUrl = `https://www.google.com/maps/dir/?api=1&destination=${addresses[addresses.length-1]}&waypoints=${addresses.slice(0, -1).join('|')}`;
+    }
+
     return (
       <div className="p-4 space-y-4">
         <div className="bg-white p-6 rounded-[2rem] shadow-sm text-center">
           <div className="w-12 h-12 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-3 text-blue-500"><Map size={24} /></div>
           <h3 className="font-bold text-gray-800 mb-2">今日路線</h3>
           <p className="text-xs text-gray-400 mb-4">共 {addresses.length} 個地點</p>
-          <a href={routeUrl} target="_blank" rel="noreferrer" className="block w-full bg-blue-500 text-white py-3 rounded-xl font-bold shadow-lg shadow-blue-200">開啟 Google Maps</a>
+          <a href={routeUrl} target="_blank" rel="noopener noreferrer" className="block w-full bg-blue-500 text-white py-3 rounded-xl font-bold shadow-lg shadow-blue-200">開啟 Google Maps 路線</a>
         </div>
       </div>
     )
 }
 
 function ToolboxView() {
-    return (
-      <div className="p-4"><div className="bg-white p-6 rounded-[2rem] text-center text-gray-400">工具箱開發中...</div></div>
-    )
+    return (<div className="p-4"><div className="bg-white p-6 rounded-[2rem] text-center text-gray-400">工具箱開發中...</div></div>)
 }
 
 function TabButton({ icon: Icon, label, isActive, onClick }) {
