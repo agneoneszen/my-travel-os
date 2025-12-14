@@ -1,19 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { initialTrips } from './data/trips'; // 僅作為移轉備份用
+import { initialTrips } from './data/trips';
 import { 
   MapPin, Calendar, ArrowLeft, Navigation, Plus, X, Save, 
   Trash2, Edit2, Utensils, Car, Camera, Coffee, Bed, Briefcase, Clock,
   Map, List, Calculator, CheckSquare, CloudSun, Plane, Wallet, PieChart, 
-  ShoppingBag, Ticket, Globe, ChevronDown, LogIn, LogOut, CloudUpload, User
+  ShoppingBag, Ticket, Globe, ChevronDown, Search
 } from 'lucide-react';
-
-// --- Firebase 相關引入 ---
-import { auth, googleProvider, db } from './firebase';
-import { signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
-import { 
-  collection, addDoc, query, where, onSnapshot, 
-  doc, updateDoc, deleteDoc, writeBatch 
-} from 'firebase/firestore';
 
 // --- 設定與常數 ---
 const TYPE_ICONS = {
@@ -36,249 +28,125 @@ const TYPE_COLORS = {
   other: 'bg-gray-100 text-gray-500'
 };
 
+// 記帳 - 預設分類 (第一次使用時的清單)
 const DEFAULT_CATEGORIES = ['餐飲', '交通', '購物', '住宿', '娛樂', '伴手禮', '機票', '其他'];
 
+// 記帳 - 幣別清單
 const CURRENCIES = [
-  { code: 'TWD', label: '新台幣' }, { code: 'JPY', label: '日圓' }, { code: 'USD', label: '美金' },
-  { code: 'EUR', label: '歐元' }, { code: 'KRW', label: '韓元' }, { code: 'CNY', label: '人民幣' },
-  { code: 'SGD', label: '新幣' }, { code: 'THB', label: '泰銖' },
+  { code: 'TWD', label: '新台幣' },
+  { code: 'JPY', label: '日圓' },
+  { code: 'USD', label: '美金' },
+  { code: 'EUR', label: '歐元' },
+  { code: 'KRW', label: '韓元' },
+  { code: 'CNY', label: '人民幣' },
+  { code: 'SGD', label: '新幣' },
+  { code: 'THB', label: '泰銖' },
 ];
 
 const PAYMENT_METHODS = ['現金', '信用卡', 'Apple Pay', 'Line Pay', 'Suica/IC卡'];
 
 export default function App() {
-  // --- 狀態管理 ---
-  const [user, setUser] = useState(null); // 使用者狀態
-  const [allTrips, setAllTrips] = useState([]);
-  const [expenses, setExpenses] = useState([]);
-  const [categories, setCategories] = useState(DEFAULT_CATEGORIES);
-  
+  // 1. 旅程資料
+  const [allTrips, setAllTrips] = useState(() => {
+    const saved = localStorage.getItem('my-travel-os-data');
+    return saved ? JSON.parse(saved) : initialTrips;
+  });
+
+  // 2. 記帳資料
+  const [expenses, setExpenses] = useState(() => {
+    const saved = localStorage.getItem('my-travel-os-expenses');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  // 3. 記帳分類 (具備自動記憶功能)
+  const [categories, setCategories] = useState(() => {
+    const saved = localStorage.getItem('my-travel-os-categories');
+    return saved ? JSON.parse(saved) : DEFAULT_CATEGORIES;
+  });
+
   const [currentTripId, setCurrentTripId] = useState(null);
   const [showAddTripModal, setShowAddTripModal] = useState(false);
-  const [loading, setLoading] = useState(true);
 
-  // --- 1. 監聽登入狀態與資料庫 ---
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
-      setLoading(false);
-      
-      if (currentUser) {
-        // 登入後：即時監聽 Firestore 資料
-        const tripsQuery = query(collection(db, "trips"), where("uid", "==", currentUser.uid));
-        const expensesQuery = query(collection(db, "expenses"), where("uid", "==", currentUser.uid));
+  // 自動存檔
+  useEffect(() => { localStorage.setItem('my-travel-os-data', JSON.stringify(allTrips)); }, [allTrips]);
+  useEffect(() => { localStorage.setItem('my-travel-os-expenses', JSON.stringify(expenses)); }, [expenses]);
+  useEffect(() => { localStorage.setItem('my-travel-os-categories', JSON.stringify(categories)); }, [categories]);
 
-        const unsubTrips = onSnapshot(tripsQuery, (snapshot) => {
-          const tripsData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
-          setAllTrips(tripsData);
-        });
-
-        const unsubExpenses = onSnapshot(expensesQuery, (snapshot) => {
-          const expData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
-          setExpenses(expData);
-        });
-
-        return () => { unsubTrips(); unsubExpenses(); };
-      } else {
-        // 未登入：清空資料
-        setAllTrips([]);
-        setExpenses([]);
-      }
-    });
-    return () => unsubscribe();
-  }, []);
-
-  // --- 2. 登入/登出 ---
-  const handleLogin = async () => {
-    try { await signInWithPopup(auth, googleProvider); } catch (error) { console.error("Login failed", error); }
-  };
-  const handleLogout = async () => {
-    try { await signOut(auth); } catch (error) { console.error("Logout failed", error); }
-  };
-
-  // --- 3. 資料移轉 (Migration) ---
-  const handleMigrateData = async () => {
-    if (!user) return alert("請先登入！");
-    if (!window.confirm("這將會把您「本機電腦」的資料上傳到雲端，並作為您的初始資料。確定要執行嗎？")) return;
-
-    const localTrips = JSON.parse(localStorage.getItem('my-travel-os-data') || '[]');
-    const localExpenses = JSON.parse(localStorage.getItem('my-travel-os-expenses') || '[]');
-
-    if (localTrips.length === 0 && localExpenses.length === 0) return alert("本機沒有資料可以移轉！");
-
-    setLoading(true);
-    try {
-      const batch = writeBatch(db);
-      
-      // 移轉行程
-      localTrips.forEach(trip => {
-        const docRef = doc(collection(db, "trips")); // 產生新 ID
-        // 保留舊 ID 關聯，或者這裡您可以選擇用新 ID，但記帳的 tripId 也要跟著改
-        // 為了簡單起見，我們這裡將舊資料寫入，但在新系統中 id 會變成 Firestore 的 document ID
-        // **重要策略**：我們把舊的 id 存成 `legacyId`，以便 expenses 對應
-        batch.set(docRef, { ...trip, uid: user.uid, legacyId: trip.id });
-      });
-
-      // 移轉記帳 (這部分比較複雜，因為 tripId 變了，但如果我們只是簡單上傳，需確保 tripId 對應正確)
-      // 這裡採用簡單策略：直接上傳，假設之後我們還能透過 legacy logic 找到
-      // 更好的做法是：先上傳 Trip，拿到新 ID，再 map 過去。但為了不讓代碼太長，我們先直接上傳。
-      localExpenses.forEach(exp => {
-        const docRef = doc(collection(db, "expenses"));
-        batch.set(docRef, { ...exp, uid: user.uid });
-      });
-
-      await batch.commit();
-      alert("資料移轉成功！現在您的資料已在雲端。");
-      // 選擇性：清除本機資料
-      // localStorage.removeItem('my-travel-os-data');
-      // localStorage.removeItem('my-travel-os-expenses');
-    } catch (e) {
-      console.error(e);
-      alert("移轉失敗，請檢查 Console");
-    }
-    setLoading(false);
-  };
-
-  // --- 4. CRUD (改為操作 Firestore) ---
-  const handleAddTrip = async (newTrip) => {
-    if (!user) return;
-    // 移除 id，讓 Firestore 自動生成
-    const { id, ...tripData } = newTrip; 
-    await addDoc(collection(db, "trips"), { ...tripData, uid: user.uid });
+  // CRUD
+  const handleAddTrip = (newTrip) => {
+    setAllTrips([newTrip, ...allTrips]);
     setShowAddTripModal(false);
   };
 
-  const handleUpdateTrip = async (updatedTrip) => {
-    if (!user) return;
-    const tripRef = doc(db, "trips", updatedTrip.id);
-    await updateDoc(tripRef, updatedTrip);
+  const handleUpdateTrip = (updatedTrip) => {
+    setAllTrips(allTrips.map(t => t.id === updatedTrip.id ? updatedTrip : t));
   };
 
-  const handleDeleteTrip = async (e, id) => {
+  const handleDeleteTrip = (e, id) => {
     e.stopPropagation();
-    if (window.confirm('確定要刪除整個旅程嗎？')) {
-      await deleteDoc(doc(db, "trips", id));
-      // 刪除相關記帳 (簡單做)
-      // 實際專案可能需要用 Cloud Functions 或 Batch delete
-      const relatedExpenses = expenses.filter(ex => ex.tripId === id);
-      relatedExpenses.forEach(async (ex) => {
-        await deleteDoc(doc(db, "expenses", ex.id));
-      });
+    if(window.confirm('確定要刪除整個旅程嗎？此動作無法復原。')) {
+      setAllTrips(allTrips.filter(t => t.id !== id));
+      setExpenses(expenses.filter(ex => ex.tripId !== id));
     }
   };
 
-  const handleAddExpense = async (newExpense) => {
-    if (!user) return;
-    const { id, ...expData } = newExpense;
-    await addDoc(collection(db, "expenses"), { ...expData, uid: user.uid });
-    
-    // 更新分類記憶
+  const handleAddExpense = (newExpense) => {
+    setExpenses([newExpense, ...expenses]);
+    // 自動記憶新分類
     if (newExpense.category && !categories.includes(newExpense.category)) {
-      const newCats = [...categories, newExpense.category];
-      setCategories(newCats);
-      localStorage.setItem('my-travel-os-categories', JSON.stringify(newCats)); // 分類還是先存本地或 User Preference
+      setCategories([...categories, newExpense.category]);
     }
   };
 
-  const handleDeleteExpense = async (id) => {
+  const handleDeleteExpense = (id) => {
     if(window.confirm('確定刪除這筆帳目？')) {
-      await deleteDoc(doc(db, "expenses", id));
+      setExpenses(expenses.filter(ex => ex.id !== id));
     }
   };
-
-  // --- 登入畫面 ---
-  if (!user) {
-    return (
-      <div className="min-h-screen bg-zen-bg flex flex-col items-center justify-center p-6 relative">
-        <h1 className="text-4xl font-serif font-bold text-zen-text tracking-widest mb-4">TRAVEL OS</h1>
-        <p className="text-gray-400 mb-8">Your Personal Travel Companion</p>
-        
-        <button onClick={handleLogin} className="bg-zen-text text-white px-8 py-4 rounded-full font-bold shadow-xl flex items-center gap-3 hover:scale-105 transition-transform">
-          <LogIn size={20} /> 使用 Google 登入
-        </button>
-        
-        <div className="mt-12 p-6 bg-white rounded-2xl shadow-sm max-w-sm text-center">
-            <h3 className="font-bold text-gray-600 mb-2">Phase 4 雲端升級</h3>
-            <p className="text-xs text-gray-400 leading-relaxed">
-                現在支援雲端同步了！<br/>
-                請先登入，進入後點擊「工具箱」<br/>
-                即可將您電腦裡的舊資料一鍵上傳。
-            </p>
-        </div>
-      </div>
-    );
-  }
 
   // --- 首頁 ---
   if (!currentTripId) {
     return (
       <div className="min-h-screen bg-zen-bg p-6 pb-20 font-sans relative">
-        <header className="mb-8 mt-4 flex justify-between items-start">
-          <div>
-            <h1 className="text-3xl font-serif font-bold text-zen-text tracking-widest">TRAVEL OS</h1>
-            <p className="text-sm text-gray-400 mt-2">Welcome, {user.displayName}</p>
-          </div>
-          <button onClick={handleLogout} className="p-2 bg-gray-100 rounded-full text-gray-500 hover:bg-red-50 hover:text-red-500">
-            <LogOut size={16} />
-          </button>
+        <header className="mb-8 mt-4">
+          <h1 className="text-3xl font-serif font-bold text-zen-text tracking-widest">TRAVEL OS</h1>
+          <p className="text-sm text-gray-400 mt-2">Personal Travel Database</p>
         </header>
 
-        {loading ? <div className="text-center text-gray-400 mt-20">載入雲端資料中...</div> : (
-          <div className="space-y-6">
-            {allTrips.map(trip => (
-              <div key={trip.id} onClick={() => setCurrentTripId(trip.id)} className="cursor-pointer group relative">
-                <div className="relative h-56 rounded-3xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-500">
-                  <img src={trip.coverImage} alt={trip.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent flex flex-col justify-end p-6">
-                    <h2 className="text-2xl font-serif font-bold text-white mb-1">{trip.title}</h2>
-                    <div className="flex justify-between items-end">
-                      <div className="flex flex-col gap-1 text-white/80 text-xs">
-                         <div className="flex items-center gap-2"><Calendar size={12} /> {trip.dates}</div>
-                         {trip.timezone && <div className="flex items-center gap-2"><Globe size={12} /> {trip.timezone}</div>}
-                      </div>
-                      <button onClick={(e) => handleDeleteTrip(e, trip.id)} className="text-white/50 hover:text-red-400 p-1"><Trash2 size={16} /></button>
+        <div className="space-y-6">
+          {allTrips.map(trip => (
+            <div key={trip.id} onClick={() => setCurrentTripId(trip.id)} className="cursor-pointer group relative">
+              <div className="relative h-56 rounded-3xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-500">
+                <img src={trip.coverImage} alt={trip.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent flex flex-col justify-end p-6">
+                  <h2 className="text-2xl font-serif font-bold text-white mb-1">{trip.title}</h2>
+                  <div className="flex justify-between items-end">
+                    <div className="flex flex-col gap-1 text-white/80 text-xs">
+                       <div className="flex items-center gap-2"><Calendar size={12} /> {trip.dates}</div>
+                       {trip.timezone && <div className="flex items-center gap-2"><Globe size={12} /> {trip.timezone}</div>}
                     </div>
+                    <button onClick={(e) => handleDeleteTrip(e, trip.id)} className="text-white/50 hover:text-red-400 p-1"><Trash2 size={16} /></button>
                   </div>
                 </div>
               </div>
-            ))}
-            {allTrips.length === 0 && (
-                <div className="text-center py-10 bg-white rounded-3xl border border-dashed border-gray-300">
-                    <p className="text-gray-400 mb-4">雲端尚無資料</p>
-                    <p className="text-xs text-gray-400">如果您是舊用戶，請到「工具箱」進行資料移轉</p>
-                </div>
-            )}
-          </div>
-        )}
+            </div>
+          ))}
+        </div>
 
         <button onClick={() => setShowAddTripModal(true)} className="fixed bottom-8 right-6 bg-zen-text text-white p-4 rounded-full shadow-2xl hover:bg-black transition-transform active:scale-95 z-50"><Plus size={24} /></button>
         {showAddTripModal && <AddTripModal onClose={() => setShowAddTripModal(false)} onSave={handleAddTrip} />}
-        
-        {/* 工具箱入口 (為了移轉資料，我們在首頁也放一個入口，或者讓用戶點進任意旅程再移轉，這裡為了方便直接放底部) */}
-        {/* 但為了保持 UI 簡潔，我們假設用戶會點進一個空旅程或我們在下方加一個文字連結 */}
-        <div className="text-center mt-10">
-             <button onClick={handleMigrateData} className="text-xs text-blue-500 underline flex items-center justify-center gap-1 mx-auto">
-                <CloudUpload size={12}/> 從本機移轉舊資料到雲端
-             </button>
-        </div>
       </div>
     );
   }
 
   const trip = allTrips.find(t => t.id === currentTripId);
-  const currentTripExpenses = expenses.filter(ex => {
-      // 相容性處理：新資料用 tripId (Firestore ID), 舊資料可能用 legacyId
-      // 這裡簡單處理：如果是剛移轉的，expenses 的 tripId 還是舊的 (e.g. "sea-tour-2025")
-      // 而 trip.id 已經是 Firestore 的亂碼 ID，但 trip.legacyId 是 "sea-tour-2025"
-      // 所以我們比對：expenses.tripId === trip.id OR expenses.tripId === trip.legacyId
-      return ex.tripId === trip.id || (trip.legacyId && ex.tripId === trip.legacyId);
-  });
+  const currentTripExpenses = expenses.filter(ex => ex.tripId === currentTripId);
 
   return (
     <TripDetail 
       trip={trip} 
       expenses={currentTripExpenses}
-      categories={categories}
+      categories={categories} // 傳入分類列表
       onBack={() => setCurrentTripId(null)} 
       onUpdate={handleUpdateTrip} 
       onAddExpense={handleAddExpense}
@@ -287,95 +155,87 @@ export default function App() {
   );
 }
 
-// --- 其餘組件 (TripDetail, PlanView, etc.) 保持與之前幾乎一致，只需微調 ---
-// 為了節省篇幅，且避免重複代碼，請保留之前的 TripDetail, PlanView, MapView, BudgetView, ToolboxView, AddTripModal, ItemModal, AddExpenseModal
-// ⚠️ 唯一要注意的是：在 BudgetView 和 PlanView 裡面的 onUpdate/onAdd 操作，現在都是透過 props 傳回 App.jsx 處理，
-// 而 App.jsx 已經改寫成 Firebase 版本了，所以子組件幾乎不需要動！
-
-// (請將您上一版完整的 TripDetail 及之後的所有 function 貼在下方)
-// ...
-// ...
-// (這裡請務必補上 TripDetail, BudgetView, PlanView... 等所有子組件代碼，完全沿用上一版即可)
-
+// --- 旅程詳細頁 ---
 function TripDetail({ trip, expenses, categories, onBack, onUpdate, onAddExpense, onDeleteExpense }) {
-    const [activeDayIdx, setActiveDayIdx] = useState(0);
-    const [activeTab, setActiveTab] = useState('plan'); 
-    
-    const handleAddDay = () => {
-      let defaultDate = "";
-      if (trip.days.length > 0) {
-        const lastDateStr = trip.days[trip.days.length - 1].date;
-        try {
-          const parts = lastDateStr.split('/');
-          if (parts.length === 2) {
-            const month = parseInt(parts[0], 10);
-            const day = parseInt(parts[1], 10);
-            const dateObj = new Date(new Date().getFullYear(), month - 1, day);
-            dateObj.setDate(dateObj.getDate() + 1);
-            defaultDate = `${String(dateObj.getMonth() + 1).padStart(2, '0')}/${String(dateObj.getDate()).padStart(2, '0')}`;
-          }
-        } catch (e) { console.error(e); }
-      }
-      const dateStr = window.prompt("請輸入日期", defaultDate || "10/15");
-      if (!dateStr) return;
-      const newDay = { date: dateStr, weekday: "Day " + (trip.days.length + 1), schedule: [] };
-      onUpdate({ ...trip, days: [...trip.days, newDay] });
-      setActiveDayIdx(trip.days.length);
-    };
+  const [activeDayIdx, setActiveDayIdx] = useState(0);
+  const [activeTab, setActiveTab] = useState('plan'); 
   
-    return (
-      <div className="min-h-screen bg-zen-bg text-zen-text font-sans pb-24">
-        <div className="sticky top-0 z-40 bg-zen-bg/95 backdrop-blur px-4 py-4 flex items-center gap-4 border-b border-gray-100">
-          <button onClick={onBack} className="p-2 hover:bg-gray-100 rounded-full transition-colors"><ArrowLeft size={20} /></button>
-          <div className="flex-1 min-w-0">
-            <h1 className="font-serif font-bold text-lg truncate">{trip.title}</h1>
-            {trip.timezone && <div className="text-[10px] text-gray-500 flex items-center gap-1"><Globe size={10} /> {trip.timezone}</div>}
-          </div>
-        </div>
-  
-        {(activeTab === 'plan' || activeTab === 'map') && (
-          <div className="px-4 py-4 overflow-x-auto no-scrollbar flex gap-3 items-center border-b border-gray-50">
-            {trip.days.map((d, i) => (
-              <button key={i} onClick={() => setActiveDayIdx(i)}
-                className={`flex-shrink-0 px-5 py-2 rounded-2xl text-sm font-medium transition-all ${
-                  i === activeDayIdx ? 'bg-zen-text text-white shadow-lg transform scale-105' : 'bg-white text-gray-400 border border-gray-100'
-                }`}>
-                <span className="block text-xs opacity-60">{d.weekday}</span>
-                {d.date}
-              </button>
-            ))}
-            <button onClick={handleAddDay} className="flex-shrink-0 w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 border border-dashed border-gray-300">
-              <Plus size={16} />
-            </button>
-          </div>
-        )}
-  
-        <div className="animate-fade-in">
-          {activeTab === 'plan' && <PlanView trip={trip} activeDayIdx={activeDayIdx} onUpdate={onUpdate} />}
-          {activeTab === 'map' && <MapView currentDay={trip.days[activeDayIdx] || {schedule:[]}} location={trip.location || 'Japan'} />}
-          {activeTab === 'budget' && (
-            <BudgetView 
-              trip={trip} 
-              expenses={expenses} 
-              categories={categories}
-              onAddExpense={onAddExpense} 
-              onDeleteExpense={onDeleteExpense}
-              onUpdateTrip={onUpdate} 
-            />
-          )}
-          {activeTab === 'tools' && <ToolboxView />}
-        </div>
-  
-        <div className="fixed bottom-0 w-full bg-white border-t border-gray-200 flex justify-around items-center p-2 pb-6 z-50">
-          <TabButton icon={List} label="行程" isActive={activeTab === 'plan'} onClick={() => setActiveTab('plan')} />
-          <TabButton icon={Map} label="地圖" isActive={activeTab === 'map'} onClick={() => setActiveTab('map')} />
-          <TabButton icon={Wallet} label="記帳" isActive={activeTab === 'budget'} onClick={() => setActiveTab('budget')} />
-          <TabButton icon={Briefcase} label="工具" isActive={activeTab === 'tools'} onClick={() => setActiveTab('tools')} />
+  const handleAddDay = () => {
+    let defaultDate = "";
+    if (trip.days.length > 0) {
+      const lastDateStr = trip.days[trip.days.length - 1].date;
+      try {
+        const parts = lastDateStr.split('/');
+        if (parts.length === 2) {
+          const month = parseInt(parts[0], 10);
+          const day = parseInt(parts[1], 10);
+          const dateObj = new Date(new Date().getFullYear(), month - 1, day);
+          dateObj.setDate(dateObj.getDate() + 1);
+          defaultDate = `${String(dateObj.getMonth() + 1).padStart(2, '0')}/${String(dateObj.getDate()).padStart(2, '0')}`;
+        }
+      } catch (e) { console.error(e); }
+    }
+    const dateStr = window.prompt("請輸入日期", defaultDate || "10/15");
+    if (!dateStr) return;
+    const newDay = { date: dateStr, weekday: "Day " + (trip.days.length + 1), schedule: [] };
+    onUpdate({ ...trip, days: [...trip.days, newDay] });
+    setActiveDayIdx(trip.days.length);
+  };
+
+  return (
+    <div className="min-h-screen bg-zen-bg text-zen-text font-sans pb-24">
+      <div className="sticky top-0 z-40 bg-zen-bg/95 backdrop-blur px-4 py-4 flex items-center gap-4 border-b border-gray-100">
+        <button onClick={onBack} className="p-2 hover:bg-gray-100 rounded-full transition-colors"><ArrowLeft size={20} /></button>
+        <div className="flex-1 min-w-0">
+          <h1 className="font-serif font-bold text-lg truncate">{trip.title}</h1>
+          {trip.timezone && <div className="text-[10px] text-gray-500 flex items-center gap-1"><Globe size={10} /> {trip.timezone}</div>}
         </div>
       </div>
-    );
-  }
 
+      {(activeTab === 'plan' || activeTab === 'map') && (
+        <div className="px-4 py-4 overflow-x-auto no-scrollbar flex gap-3 items-center border-b border-gray-50">
+          {trip.days.map((d, i) => (
+            <button key={i} onClick={() => setActiveDayIdx(i)}
+              className={`flex-shrink-0 px-5 py-2 rounded-2xl text-sm font-medium transition-all ${
+                i === activeDayIdx ? 'bg-zen-text text-white shadow-lg transform scale-105' : 'bg-white text-gray-400 border border-gray-100'
+              }`}>
+              <span className="block text-xs opacity-60">{d.weekday}</span>
+              {d.date}
+            </button>
+          ))}
+          <button onClick={handleAddDay} className="flex-shrink-0 w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 border border-dashed border-gray-300">
+            <Plus size={16} />
+          </button>
+        </div>
+      )}
+
+      <div className="animate-fade-in">
+        {activeTab === 'plan' && <PlanView trip={trip} activeDayIdx={activeDayIdx} onUpdate={onUpdate} />}
+        {activeTab === 'map' && <MapView currentDay={trip.days[activeDayIdx] || {schedule:[]}} location={trip.location || 'Japan'} />}
+        {activeTab === 'budget' && (
+          <BudgetView 
+            trip={trip} 
+            expenses={expenses} 
+            categories={categories}
+            onAddExpense={onAddExpense} 
+            onDeleteExpense={onDeleteExpense}
+            onUpdateTrip={onUpdate} 
+          />
+        )}
+        {activeTab === 'tools' && <ToolboxView />}
+      </div>
+
+      <div className="fixed bottom-0 w-full bg-white border-t border-gray-200 flex justify-around items-center p-2 pb-6 z-50">
+        <TabButton icon={List} label="行程" isActive={activeTab === 'plan'} onClick={() => setActiveTab('plan')} />
+        <TabButton icon={Map} label="地圖" isActive={activeTab === 'map'} onClick={() => setActiveTab('map')} />
+        <TabButton icon={Wallet} label="記帳" isActive={activeTab === 'budget'} onClick={() => setActiveTab('budget')} />
+        <TabButton icon={Briefcase} label="工具" isActive={activeTab === 'tools'} onClick={() => setActiveTab('tools')} />
+      </div>
+    </div>
+  );
+}
+
+// --- Tab 3: 記帳模組 (BudgetView) ---
 function BudgetView({ trip, expenses, categories, onAddExpense, onDeleteExpense, onUpdateTrip }) {
   const [showAddModal, setShowAddModal] = useState(false);
   const totalSpentTWD = expenses.reduce((acc, curr) => acc + (parseFloat(curr.twdAmount) || 0), 0);
@@ -391,6 +251,7 @@ function BudgetView({ trip, expenses, categories, onAddExpense, onDeleteExpense,
 
   return (
     <div className="p-4 space-y-6 pb-20">
+      {/* 儀表板 */}
       <div className="bg-zen-text text-white p-6 rounded-3xl shadow-lg relative overflow-hidden">
         <div className="relative z-10">
           <div className="flex justify-between items-start mb-2">
@@ -413,6 +274,7 @@ function BudgetView({ trip, expenses, categories, onAddExpense, onDeleteExpense,
         <PieChart className="absolute -bottom-4 -right-4 text-white/5 w-32 h-32" />
       </div>
 
+      {/* 支出列表 */}
       <div className="space-y-4">
         <div className="flex justify-between items-end">
            <h3 className="font-bold text-zen-text text-lg">近期支出</h3>
@@ -473,6 +335,7 @@ function BudgetView({ trip, expenses, categories, onAddExpense, onDeleteExpense,
   );
 }
 
+// --- 進階記帳 Modal (含分類自動記憶 + 輸入與下拉整合) ---
 function AddExpenseModal({ tripId, categories, onClose, onSave }) {
   const [formData, setFormData] = useState({
     amount: '', currency: 'JPY', rate: '0.22', twdAmount: 0,
@@ -516,6 +379,7 @@ function AddExpenseModal({ tripId, categories, onClose, onSave }) {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5">
+          {/* 金額區塊 */}
           <div className="bg-gray-50 p-4 rounded-2xl space-y-3">
              <div className="flex items-end gap-2">
                 <div className="flex-1">
@@ -540,6 +404,7 @@ function AddExpenseModal({ tripId, categories, onClose, onSave }) {
              </div>
           </div>
 
+          {/* 分類區塊 (Input + Dropdown) */}
           <div className="relative">
              <label className="text-xs font-bold text-gray-500 uppercase mb-1 block">主分類</label>
              <div className="flex gap-2">
@@ -558,6 +423,7 @@ function AddExpenseModal({ tripId, categories, onClose, onSave }) {
                 </button>
              </div>
              
+             {/* 下拉選單 (自動過濾 + 常用) */}
              {showCategoryList && (
                <div className="absolute z-10 w-full mt-2 bg-white rounded-xl shadow-xl border border-gray-100 max-h-40 overflow-y-auto p-2 grid grid-cols-3 gap-2">
                  {categories.filter(c => c.includes(formData.category)).map(cat => (
@@ -575,6 +441,7 @@ function AddExpenseModal({ tripId, categories, onClose, onSave }) {
              )}
           </div>
 
+          {/* 詳細資訊 Grid */}
           <div className="grid grid-cols-2 gap-4">
              <div>
                 <label className="text-xs font-bold text-gray-500 uppercase">項目名稱</label>
@@ -644,7 +511,7 @@ function AddTripModal({ onClose, onSave }) {
         </div>
         <form onSubmit={(e) => { e.preventDefault(); onSave({ id: Date.now().toString(), ...formData, days: [] }); }} className="space-y-4">
           <input required type="text" placeholder="旅程名稱" className="w-full p-3 bg-gray-50 rounded-xl border-none outline-none" onChange={e => setFormData({...formData, title: e.target.value})} />
-          <input required type="text" placeholder="日期 (例: 2025.10.10)" className="w-full p-3 bg-gray-50 rounded-xl border-none outline-none" onChange={e => setFormData({...formData, dates: e.target.value})} />
+          <input required type="text" placeholder="日期" className="w-full p-3 bg-gray-50 rounded-xl border-none outline-none" onChange={e => setFormData({...formData, dates: e.target.value})} />
           <input type="text" placeholder="時區 (例: GMT+9)" className="w-full p-3 bg-gray-50 rounded-xl border-none outline-none" onChange={e => setFormData({...formData, timezone: e.target.value})} />
           <input type="text" placeholder="圖片 URL" className="w-full p-3 bg-gray-50 rounded-xl border-none outline-none" onChange={e => setFormData({...formData, coverImage: e.target.value || formData.coverImage})} />
           <button type="submit" className="w-full bg-zen-text text-white py-3 rounded-xl font-bold"><Save size={18} className="inline mr-2"/> 建立</button>
@@ -653,6 +520,11 @@ function AddTripModal({ onClose, onSave }) {
     </div>
   )
 }
+
+// --- 重複使用組件 (PlanView, MapView, ToolboxView, TabButton, ItemModal) ---
+// 為確保完整性，請將之前提供的這些組件代碼接在下方 (這些組件本次無修改需求，沿用即可)
+// 為了避免過長，這裡省略。請務必保留 PlanView, MapView, ToolboxView, TabButton, ItemModal 這幾個 function。
+// -------------------------------------------------------------------------------------
 
 function PlanView({ trip, activeDayIdx, onUpdate }) {
   const [editingItem, setEditingItem] = useState(null);
