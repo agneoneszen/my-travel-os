@@ -1,17 +1,17 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { 
-  MapPin, Calendar, ArrowLeft, Plus, X, 
+  MapPin, Calendar, ArrowLeft, Plus, X, Save, 
   Trash2, Edit2, Utensils, Car, Camera, Coffee, Bed, Briefcase, Clock,
   Map, List, Wallet, PieChart, Image, Users,
   Globe, LogIn, LogOut, GripVertical, CheckSquare, Calculator,
-  WifiOff, Wifi, DollarSign, ArrowRight, Mail, CloudUpload
+  Sun, Cloud, CloudRain, WifiOff, Wifi, DollarSign, ArrowRight, Mail
 } from 'lucide-react';
 
 // --- Firebase ---
 import { auth, googleProvider, db } from './firebase';
-import { signInWithPopup, signOut, onAuthStateChanged, getRedirectResult } from 'firebase/auth';
-import { collection, addDoc, query, where, onSnapshot, doc, updateDoc, deleteDoc, writeBatch, getDocs } from 'firebase/firestore';
+import { signInWithRedirect, signOut, onAuthStateChanged, getRedirectResult } from 'firebase/auth';
+import { collection, addDoc, query, where, onSnapshot, doc, updateDoc, deleteDoc, getDocs, writeBatch } from 'firebase/firestore';
 
 // --- Constants & Helpers ---
 const TYPE_ICONS = {
@@ -29,11 +29,10 @@ const CURRENCIES = [
   { code: 'KRW', label: '韓元' }, { code: 'CNY', label: '人民幣' }
 ];
 const PAYMENT_METHODS = ['現金', '信用卡', 'Apple Pay', 'Line Pay', 'Suica'];
+// 單人模式下的預設分帳成員
 const FINANCE_MEMBERS_BASE = ['我', '公費', '旅伴 A', '旅伴 B']; 
 
-// 關鍵 helper：產生唯一 ID
-const generateId = () => Date.now().toString(36) + Math.random().toString(36).substr(2);
-
+// 日期格式化 YYYY/MM/DD
 const formatDate = (dateStr) => {
     if (!dateStr) return '';
     return dateStr.replace(/-/g, '/');
@@ -68,84 +67,93 @@ export default function App() {
 
   const [currentTripId, setCurrentTripId] = useState(null);
   const [showAddTripModal, setShowAddTripModal] = useState(false);
+  // const [showMemberModal, setShowMemberModal] = useState(false); // 移除
   const [loading, setLoading] = useState(true);
   
+  // ESC close global
   useEffect(() => {
-    const handleEsc = (e) => { if (e.key === 'Escape') setShowAddTripModal(false); };
+    const handleEsc = (e) => { 
+        if (e.key === 'Escape') { 
+            setShowAddTripModal(false); 
+        } 
+    };
     window.addEventListener('keydown', handleEsc); return () => window.removeEventListener('keydown', handleEsc);
   }, []);
 
+  // Network listener
   useEffect(() => {
     const handleStatus = () => setIsOffline(!navigator.onLine);
     window.addEventListener('online', handleStatus); window.addEventListener('offline', handleStatus);
     return () => { window.removeEventListener('online', handleStatus); window.removeEventListener('offline', handleStatus); };
   }, []);
 
+  // Firebase Auth & Data (Single-User Logic - Reverted to uid)
   useEffect(() => {
     getRedirectResult(auth).catch(e => console.error(e));
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
       if (currentUser) {
+        // 嘗試讀取快取
         const cached = localStorage.getItem(`trips_${currentUser.uid}`);
         if(cached) { setAllTrips(JSON.parse(cached)); setLoading(false); }
 
+        // 核心修復：使用 uid 查詢，恢復舊數據可見性
         const tripsQuery = query(collection(db, "trips"), where("uid", "==", currentUser.uid));
         
+        // 記帳：讀取所有我建立的支出
+        const expensesQuery = query(collection(db, "expenses"), where("uid", "==", currentUser.uid));
+
+
         const unsubTrips = onSnapshot(tripsQuery, (snapshot) => {
           const tripsData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
-          const safeTrips = tripsData.map(t => ({
-              ...t, 
+          const safeTrips = tripsData.map(t => ({...t, 
               days: t.days || [], 
-              members: t.members || FINANCE_MEMBERS_BASE 
+              members: t.members || FINANCE_MEMBERS_BASE // 確保成員清單存在，用於分帳 UI
           }));
           setAllTrips(safeTrips);
           localStorage.setItem(`trips_${currentUser.uid}`, JSON.stringify(safeTrips));
           setLoading(false);
         }, (err) => {
             console.error("Firestore Err:", err);
+            // Fallback to cache if error (offline)
             setIsOffline(true);
         });
 
-        let unsubExpenses = () => {};
-        if (currentTripId) {
-            const expensesQuery = query(
-                collection(db, "expenses"), 
-                where("uid", "==", currentUser.uid),
-                where("tripId", "==", currentTripId)
-            );
-            unsubExpenses = onSnapshot(expensesQuery, (snapshot) => {
-                const allEx = snapshot.docs.map(d => ({...d.data(), id: d.id}));
-                setExpenses(allEx);
-            });
-        } else {
-            setExpenses([]);
-        }
+        const unsubExpenses = onSnapshot(expensesQuery, (snapshot) => {
+             const allEx = snapshot.docs.map(d => ({...d.data(), id: d.id}));
+             setExpenses(allEx);
+        });
+
         return () => { unsubTrips(); unsubExpenses(); };
-      } else { 
-          setAllTrips([]); 
-          setExpenses([]);
-          setLoading(false); 
-      }
+      } else { setAllTrips([]); setLoading(false); }
     });
     return () => unsubscribe();
-  }, [currentTripId]);
+  }, []);
 
-  const handleLogin = async () => {
-    try { await signInWithPopup(auth, googleProvider); } catch (error) { console.error("Login failed:", error); alert("登入失敗，請確認網路連線或使用無痕模式測試。"); }
-  };
+  const handleLogin = () => signInWithRedirect(auth, googleProvider);
   const handleLogout = async () => { await signOut(auth); };
 
+  // --- NEW: 資料庫修復函數 (已移除，避免複雜化，此版本不再需要此按鈕) ---
+  const handleRepairOldTrips = () => {
+    alert("此功能已移除，因為應用程式已退回單人模式。如果數據仍未顯示，請確認您已登入正確的 Google 帳號。");
+  };
+
+  // CRUD
   const handleAddTrip = async (newTrip) => {
     if (!user) return;
     const coverUrl = newTrip.coverImage || getAutoCover(newTrip.title);
-    await addDoc(collection(db, "trips"), { ...newTrip, uid: user.uid, coverImage: coverUrl, members: FINANCE_MEMBERS_BASE });
+    await addDoc(collection(db, "trips"), { 
+        ...newTrip, 
+        uid: user.uid, 
+        coverImage: coverUrl,
+        members: FINANCE_MEMBERS_BASE, // 初始化財務成員清單
+    });
     setShowAddTripModal(false);
   };
   const handleUpdateTrip = async (updatedTrip) => {
     if (!user) return;
     setAllTrips(prev => prev.map(t => t.id === updatedTrip.id ? updatedTrip : t)); 
-    const { id, ...dataToUpdate } = updatedTrip;
-    await updateDoc(doc(db, "trips", id), dataToUpdate);
+    await updateDoc(doc(db, "trips", updatedTrip.id), updatedTrip);
   };
   const handleDeleteTrip = async (e, id) => {
     e.stopPropagation();
@@ -153,16 +161,17 @@ export default function App() {
   };
   const handleUpdateImage = async (e, trip) => {
     e.stopPropagation();
-    const newUrl = window.prompt("請輸入圖片網址:", trip.coverImage);
+    const newUrl = window.prompt("請輸入圖片網址 (可用 Unsplash 連結):", trip.coverImage);
     if(newUrl) await handleUpdateTrip({...trip, coverImage: newUrl});
   };
 
+  // --- Render ---
   if (!user) {
     return (
       <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6">
         <div className="w-24 h-24 bg-black rounded-3xl flex items-center justify-center mb-8 shadow-2xl rotate-3"><span className="text-5xl">✈️</span></div>
         <h1 className="text-4xl font-extrabold text-slate-800 mb-3">Travel OS</h1>
-        <p className="text-slate-400 mb-12">單人版．簡約規劃．智慧記帳</p>
+        <p className="text-slate-400 mb-12">單人版．即時天氣．智慧記帳</p>
         <button onClick={handleLogin} className="bg-black text-white px-10 py-4 rounded-full font-bold shadow-xl flex items-center gap-3"><LogIn size={20} /> 使用 Google 登入</button>
       </div>
     );
@@ -176,6 +185,7 @@ export default function App() {
           <button onClick={handleLogout} className="w-10 h-10 bg-white rounded-full text-slate-400 hover:text-red-500 shadow-sm flex items-center justify-center"><LogOut size={18} /></button>
         </header>
         {isOffline && <div className="mb-6 bg-orange-50 border border-orange-100 text-orange-600 px-4 py-3 rounded-2xl flex items-center gap-2 text-sm font-bold"><WifiOff size={16}/> 離線模式</div>}
+        
         {loading ? <div className="text-center text-slate-300 mt-20">載入中...</div> : (
           <div className="grid gap-6">
             {allTrips.map(trip => (
@@ -200,15 +210,22 @@ export default function App() {
         )}
         <button onClick={() => setShowAddTripModal(true)} className="fixed bottom-8 right-6 bg-black text-white w-16 h-16 rounded-full shadow-2xl hover:scale-110 transition-all flex items-center justify-center z-50"><Plus size={28} /></button>
         {showAddTripModal && <AddTripModal onClose={() => setShowAddTripModal(false)} onSave={handleAddTrip} />}
+
+        {/* 底部按鈕已移除 */}
+        <div className="text-center mt-12 pb-8">
+             <button onClick={handleRepairOldTrips} className="text-[10px] text-red-400 hover:text-red-500 underline flex items-center justify-center gap-1 mx-auto">
+                {/* 顯示提示，此功能在單人模式下已無作用 */}
+                <RefreshCw size={10}/> 修復功能已暫時移除 (穩定版)
+             </button>
+        </div>
       </div>
     );
   }
 
   const trip = allTrips.find(t => t.id === currentTripId);
-  if (!trip) return <div className="min-h-screen bg-slate-50 flex items-center justify-center text-slate-400">載入旅程詳情中...</div>;
-  
-  const currentMembers = trip.members || FINANCE_MEMBERS_BASE;
+  if (!trip && currentTripId) { setCurrentTripId(null); return null; }
   const currentTripExpenses = expenses.filter(ex => ex.tripId === trip.id);
+  const currentMembers = trip?.members || FINANCE_MEMBERS_BASE;
 
   return (
     <TripDetail 
@@ -219,36 +236,27 @@ export default function App() {
       onUpdateExpense={(ex) => updateDoc(doc(db, "expenses", ex.id), ex)}
       onDeleteExpense={(id) => deleteDoc(doc(db, "expenses", id))}
       isOffline={isOffline}
-      members={currentMembers} 
+      members={currentMembers} // 傳遞成員清單給子組件
     />
   );
 }
 
+// --- Detail View ---
 function TripDetail({ trip, expenses, categories, onBack, onUpdate, onAddExpense, onDeleteExpense, onUpdateExpense, isOffline, members }) {
     const [activeDayIdx, setActiveDayIdx] = useState(0);
     const [activeTab, setActiveTab] = useState('plan'); 
     
-    const currentDays = trip.days || [];
-    
-    useEffect(() => {
-        if (activeDayIdx >= currentDays.length && currentDays.length > 0) {
-            setActiveDayIdx(currentDays.length - 1);
-        }
-    }, [currentDays.length, activeDayIdx]);
-
-    const activeDay = currentDays[activeDayIdx];
-
-    const today = new Date().toISOString().split('T')[0].replace(/-/g, '/');
+    // Member management is simplified/removed in this version.
     const handleAddDay = () => {
-      const dateStr = window.prompt("輸入日期 (YYYY/MM/DD):", today);
+      const dateStr = window.prompt("輸入日期 (YYYY/MM/DD):", "2025/12/15");
       if (!dateStr) return;
-      onUpdate({ ...trip, days: [...(currentDays), { date: formatDate(dateStr), weekday: `Day ${currentDays.length + 1}`, schedule: [] }] });
-      setActiveDayIdx(currentDays.length);
+      onUpdate({ ...trip, days: [...(trip.days||[]), { date: formatDate(dateStr), weekday: `Day ${(trip.days||[]).length + 1}`, schedule: [] }] });
+      setActiveDayIdx((trip.days||[]).length);
     };
     const handleDeleteDay = (e, index) => {
         e.stopPropagation();
-        if(!window.confirm(`確定刪除 ${currentDays[index].date}？`)) return;
-        const newDays = currentDays.filter((_, i) => i !== index);
+        if(!window.confirm(`確定刪除 ${trip.days[index].date}？`)) return;
+        const newDays = trip.days.filter((_, i) => i !== index);
         onUpdate({ ...trip, days: newDays });
         setActiveDayIdx(Math.max(0, index - 1));
     };
@@ -264,11 +272,12 @@ function TripDetail({ trip, expenses, categories, onBack, onUpdate, onAddExpense
                 <span className="flex items-center gap-1"><Calendar size={10}/> {formatDate(trip.dates)}</span>
             </div>
           </div>
+          {/* 會員管理按鈕已移除，以簡化為單人模式 */}
         </div>
   
         {(activeTab === 'plan' || activeTab === 'map') && (
           <div className="px-4 py-3 overflow-x-auto no-scrollbar flex gap-2 items-center border-b border-slate-100/50">
-            {currentDays.map((d, i) => (
+            {trip.days && trip.days.map((d, i) => (
               <div key={i} onClick={() => setActiveDayIdx(i)} className={`relative group flex-shrink-0 px-5 py-2.5 rounded-2xl text-xs font-bold transition-all cursor-pointer border ${i === activeDayIdx ? 'bg-black text-white shadow-lg scale-105 border-transparent' : 'bg-white text-slate-400 border-slate-100'}`}>
                 <span className="block text-[9px] opacity-60 font-medium mb-0.5">{d.weekday}</span>
                 {d.date}
@@ -281,13 +290,13 @@ function TripDetail({ trip, expenses, categories, onBack, onUpdate, onAddExpense
   
         <div className="animate-fade-in">
           {activeTab === 'plan' && <PlanView trip={trip} activeDayIdx={activeDayIdx} onUpdate={onUpdate} />}
-          {activeTab === 'map' && activeDay && <MapView currentDay={activeDay} location={trip.title} />}
-          {activeTab === 'map' && !activeDay && <div className="text-center py-20 text-slate-400">請先新增行程天數</div>}
-          
+          {activeTab === 'map' && <MapView currentDay={trip.days?.[activeDayIdx] || {schedule:[]}} location={trip.title} />}
           {activeTab === 'budget' && <BudgetView trip={trip} expenses={expenses} categories={categories} members={members} onAddExpense={onAddExpense} onDeleteExpense={onDeleteExpense} onUpdateTrip={onUpdate} onUpdateExpense={onUpdateExpense} />}
           {activeTab === 'tools' && <ToolboxView />}
         </div>
         
+        {/* MemberManagementModal 已被移除 */}
+
         <div className="fixed bottom-0 w-full bg-white/90 backdrop-blur-xl border-t border-slate-100 flex justify-around items-center pb-8 pt-4 z-50">
           <TabButton icon={List} label="行程" isActive={activeTab === 'plan'} onClick={() => setActiveTab('plan')} />
           <TabButton icon={Map} label="地圖" isActive={activeTab === 'map'} onClick={() => setActiveTab('map')} />
@@ -298,41 +307,94 @@ function TripDetail({ trip, expenses, categories, onBack, onUpdate, onAddExpense
     );
 }
 
-// 🟢 PlanView: FAB + Solid Button + Robust Edit Logic
+// --- Real Weather API Component (Open-Meteo) ---
+function WeatherWidget({ locationName, date }) {
+    const [weather, setWeather] = useState(null);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchWeather = async () => {
+            if (!locationName) return;
+            setLoading(true);
+            try {
+                // 1. Geocoding
+                const geoRes = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(locationName)}&count=1&language=en&format=json`);
+                const geoData = await geoRes.json();
+                
+                if (!geoData.results || geoData.results.length === 0) { throw new Error("Location not found"); }
+                const { latitude, longitude } = geoData.results[0];
+                const timezone = geoData.results[0].timezone; 
+
+                // 2. Weather Data (Forecast)
+                const apiDate = date.replace(/\//g, '-');
+                const weatherRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&daily=weather_code,temperature_2m_max,precipitation_probability_max&timezone=${timezone}&start_date=${apiDate}&end_date=${apiDate}`);
+                const weatherData = await weatherRes.json();
+
+                // 3. Extract data for the specific date
+                const code = weatherData.daily.weather_code?.[0];
+                const temp = weatherData.daily.temperature_2m_max?.[0];
+                const rain = weatherData.daily.precipitation_probability_max?.[0];
+
+                let icon = <Sun size={24} className="text-orange-400"/>;
+                let text = "晴朗";
+                
+                if (code >= 3 && code <= 48) { icon = <Cloud size={24} className="text-slate-300"/>; text = "多雲/霧"; }
+                if (code >= 51) { icon = <CloudRain size={24} className="text-blue-400"/>; text = "有雨"; }
+
+                setWeather({ icon, temp, text, rain });
+            } catch (e) {
+                console.error("Weather API Error:", e);
+                setWeather(null); 
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchWeather();
+    }, [locationName, date]);
+
+    if (loading) return <div className="mx-4 mt-4 p-4 bg-slate-100 rounded-2xl animate-pulse text-xs text-slate-400 text-center">正在連線氣象衛星...</div>;
+    if (!weather) return null;
+
+    return (
+        <div className="mx-4 mt-4 mb-2 p-4 bg-gradient-to-r from-sky-500 to-blue-600 rounded-2xl text-white shadow-lg shadow-blue-200 flex items-center justify-between">
+            <div>
+                <div className="text-xs font-medium opacity-80 mb-1">{locationName} {date} 天氣預報</div>
+                <div className="text-2xl font-bold flex items-center gap-2">{weather.icon} {Math.round(weather.temp)}°C <span className="text-sm font-normal opacity-90">{weather.text}</span></div>
+            </div>
+            <div className="text-right">
+                <div className="text-xs opacity-80">降雨機率</div>
+                <div className="font-bold">{weather.rain}%</div>
+            </div>
+        </div>
+    )
+}
+
 function PlanView({ trip, activeDayIdx, onUpdate }) {
-  const [editingIndex, setEditingIndex] = useState(-1);
   const [editingItem, setEditingItem] = useState(null);
   const [showItemModal, setShowItemModal] = useState(false);
-  
   const currentDay = trip.days?.[activeDayIdx];
   const schedule = currentDay?.schedule || [];
 
   const handleSaveItem = (itemData) => {
-    // 🛡️ 安全檢查：防止在沒有天數時崩潰
-    const newDays = [...(trip.days || [])];
-    if (!newDays[activeDayIdx]) return;
-
+    const newDays = [...trip.days];
     const daySchedule = [...(newDays[activeDayIdx].schedule || [])];
-    const newItemWithId = { ...itemData, id: itemData.id || generateId() };
-
-    if (editingIndex >= 0) {
-      daySchedule[editingIndex] = newItemWithId;
+    if (editingItem) {
+      const index = daySchedule.findIndex(i => i === editingItem);
+      if(index !== -1) daySchedule[index] = itemData;
     } else {
-      daySchedule.push(newItemWithId);
+      daySchedule.push(itemData);
       daySchedule.sort((a, b) => a.time.localeCompare(b.time)); 
     }
-    
     newDays[activeDayIdx] = { ...newDays[activeDayIdx], schedule: daySchedule };
     onUpdate({ ...trip, days: newDays });
     setShowItemModal(false);
     setEditingItem(null);
-    setEditingIndex(-1);
   };
 
-  const handleDeleteItem = (index) => {
+  const handleDeleteItem = (itemIdx) => {
     if(!window.confirm("確定刪除？")) return;
-    const newDays = [...(trip.days || [])];
-    const daySchedule = newDays[activeDayIdx].schedule.filter((_, i) => i !== index);
+    const newDays = [...trip.days];
+    const daySchedule = newDays[activeDayIdx].schedule.filter((_, i) => i !== itemIdx);
     newDays[activeDayIdx] = { ...newDays[activeDayIdx], schedule: daySchedule };
     onUpdate({ ...trip, days: newDays });
   };
@@ -342,42 +404,25 @@ function PlanView({ trip, activeDayIdx, onUpdate }) {
     const items = Array.from(schedule);
     const [reorderedItem] = items.splice(result.source.index, 1);
     items.splice(result.destination.index, 0, reorderedItem);
-    const newDays = [...(trip.days || [])];
+    const newDays = [...trip.days];
     newDays[activeDayIdx] = { ...newDays[activeDayIdx], schedule: items };
     onUpdate({ ...trip, days: newDays });
   };
 
-  const openAdd = () => {
-      setEditingIndex(-1);
-      setEditingItem(null);
-      setShowItemModal(true);
-  };
-
-  const openEdit = (item, index) => {
-      setEditingIndex(index);
-      setEditingItem(item);
-      setShowItemModal(true);
-  };
-
   return (
-    <div className="pb-28 relative">
-      {!currentDay ? (
-          <div className="text-center py-20 px-6">
-              <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-400"><Calendar size={24} /></div>
-              <p className="text-slate-500 font-bold mb-2">還沒有行程天數</p>
-              <p className="text-slate-400 text-sm mb-6">點擊上方 + 按鈕來新增你的第一天</p>
-          </div>
-      ) : (
+    <div className="pb-10">
+      {!currentDay ? <div className="text-center py-20 text-slate-400 text-sm">請先選擇日期</div> : (
         <>
-          {schedule.length === 0 && <div className="text-center py-16 text-slate-300 text-sm">尚無行程，點擊右下角新增</div>}
+          <WeatherWidget locationName={trip.title} date={currentDay.date} />
+          {schedule.length === 0 && <div className="text-center py-16 text-slate-300 text-sm">尚無行程，點擊下方新增</div>}
           <DragDropContext onDragEnd={handleDragEnd}>
             <Droppable droppableId="schedule-list">
               {(provided) => (
                 <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-4 px-4">
                   {schedule.map((item, idx) => (
-                    <Draggable key={item.id || idx} draggableId={item.id || `item-${idx}`} index={idx}>
+                    <Draggable key={idx} draggableId={`item-${idx}`} index={idx}>
                       {(provided, snapshot) => (
-                        <div ref={provided.innerRef} {...provided.draggableProps} onClick={() => openEdit(item, idx)} className="relative group outline-none">
+                        <div ref={provided.innerRef} {...provided.draggableProps} onClick={() => {setEditingItem(item); setShowItemModal(true)}} className="relative group outline-none">
                            <div className="absolute left-4 top-0 bottom-0 w-[2px] bg-slate-100 -z-10 group-hover:bg-slate-200 transition-colors"></div>
                            <div className={`relative bg-white p-4 pl-3 rounded-2xl border transition-all cursor-pointer ${snapshot.isDragging ? 'shadow-2xl scale-105 z-50 border-black/10' : 'shadow-sm border-slate-50 hover:shadow-md hover:border-slate-200'}`}>
                              <div className="flex justify-between items-start">
@@ -387,7 +432,7 @@ function PlanView({ trip, activeDayIdx, onUpdate }) {
                                      <div className="flex-1 min-w-0">
                                         <h3 className={`font-bold text-slate-800 text-base truncate ${item.highlight ? 'text-red-500' : ''}`}>{item.title}</h3>
                                         <div className="flex flex-wrap items-center gap-2 mt-2"><span className={`text-[10px] px-2 py-1 rounded-md font-bold flex items-center gap-1 ${TYPE_COLORS[item.type] || TYPE_COLORS.other}`}>{TYPE_ICONS[item.type] || TYPE_ICONS.other}</span>{item.timezone && item.timezone !== trip.timezone && <span className="text-[10px] bg-slate-100 text-slate-500 px-2 py-1 rounded-md flex items-center gap-1"><Globe size={10}/> {item.timezone.split('/')[1] || 'Zone'}</span>}</div>
-                                        {item.address && <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(item.address)}`} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className="text-[11px] text-slate-400 mt-2 flex items-center gap-1 truncate hover:text-blue-500 hover:underline"><MapPin size={10}/> {item.address}</a>}
+                                        {item.address && <a href={`http://googleusercontent.com/maps.google.com/search?q=${encodeURIComponent(item.address)}`} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className="text-[11px] text-slate-400 mt-2 flex items-center gap-1 truncate hover:text-blue-500 hover:underline"><MapPin size={10}/> {item.address}</a>}
                                      </div>
                                  </div>
                                  <div className="flex flex-col gap-1 pl-2"><button onClick={(e) => { e.stopPropagation(); handleDeleteItem(idx); }} className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-full"><Trash2 size={14}/></button></div>
@@ -403,19 +448,7 @@ function PlanView({ trip, activeDayIdx, onUpdate }) {
               )}
             </Droppable>
           </DragDropContext>
-          
-          {/* 優化後的底部實心按鈕 */}
-          <button onClick={openAdd} className="mx-4 mt-6 py-4 bg-slate-100 text-slate-500 rounded-2xl font-bold hover:bg-slate-200 transition-all flex items-center justify-center gap-2 text-sm w-[calc(100%-2rem)] active:scale-95">
-            <Plus size={16} /> 新增下一個行程
-          </button>
-
-          {/* 懸浮按鈕 (FAB) */}
-          <button 
-            onClick={openAdd} 
-            className="fixed bottom-24 right-5 w-14 h-14 bg-black text-white rounded-full shadow-2xl shadow-black/40 flex items-center justify-center z-50 hover:scale-110 active:scale-90 transition-all"
-          >
-            <Plus size={28} />
-          </button>
+          <button onClick={() => {setEditingItem(null); setShowItemModal(true)}} className="mx-4 mt-6 py-4 border-2 border-dashed border-slate-200 text-slate-400 rounded-2xl font-bold hover:border-black hover:text-black transition-all flex items-center justify-center gap-2 text-sm w-[calc(100%-2rem)]"><Plus size={16} /> 新增行程</button>
         </>
       )}
       {showItemModal && <ItemModal initialData={editingItem} tripTimezone={trip.timezone} onClose={() => setShowItemModal(false)} onSave={handleSaveItem} />}
@@ -423,6 +456,7 @@ function PlanView({ trip, activeDayIdx, onUpdate }) {
   );
 }
 
+// --- Settlement Modal ---
 function SettlementModal({ expenses, members, onClose }) {
     const calculateBalances = () => {
         const balances = {};
@@ -554,195 +588,19 @@ function AddExpenseModal({ tripId, categories, members, initialData, onClose, on
 }
 
 function AddTripModal({ onClose, onSave }) {
-  const [formData, setFormData] = useState({ title: '', dates: '', timezone: 'Asia/Taipei', coverImage: '' });
+  const [formData, setFormData] = useState({ title: '東京富士山家族旅行', dates: '2025/12/15-2025/12/22', timezone: 'Asia/Taipei', coverImage: '' });
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[70] flex items-center justify-center p-6">
       <div onClick={e => e.stopPropagation()} className="bg-white rounded-[2rem] p-8 w-full max-w-sm shadow-2xl animate-fade-in">
         <div className="flex justify-between items-center mb-6"><h3 className="text-xl font-extrabold text-slate-800">建立新旅程</h3><button onClick={onClose}><X size={24} className="text-slate-400"/></button></div>
         <form onSubmit={(e) => { e.preventDefault(); onSave({ id: Date.now().toString(), ...formData, days: [] }); }} className="space-y-5">
           <div><label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">旅程名稱</label><input required type="text" placeholder="例：東京五日遊" className="w-full p-4 bg-slate-50 rounded-xl font-bold outline-none focus:ring-2 focus:ring-black" onChange={e => setFormData({...formData, title: e.target.value})} value={formData.title} /></div>
-          <div><label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">日期範圍</label><input required type="text" value={formData.dates} placeholder="YYYY/MM/DD-YYYY/MM/DD" className="w-full p-4 bg-slate-50 rounded-xl font-bold outline-none focus:ring-2 focus:ring-black" onChange={e => setFormData({...formData, dates: formatDate(e.target.value)})} /></div>
+          <div><label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">日期範圍</label><input required type="text" value={formData.dates} className="w-full p-4 bg-slate-50 rounded-xl font-bold outline-none focus:ring-2 focus:ring-black" onChange={e => setFormData({...formData, dates: formatDate(e.target.value)})} /></div>
           <button type="submit" className="w-full bg-black text-white py-4 rounded-xl font-bold shadow-lg hover:shadow-xl active:scale-95 transition-all">開始規劃</button>
         </form>
       </div>
     </div>
   )
-}
-
-function MapView({ currentDay, location }) {
-    const addresses = currentDay?.schedule?.filter(item => item.address && item.address.length > 2).map(item => encodeURIComponent(item.address)) || [];
-    let iframeSrc = `https://maps.google.com/maps?q=${encodeURIComponent(location)}&t=&z=13&ie=UTF8&iwloc=&output=embed`;
-    if (addresses.length > 0) {
-        iframeSrc = `https://maps.google.com/maps?q=${addresses[0]}&t=&z=14&ie=UTF8&iwloc=&output=embed`;
-    }
-    let externalLink = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`;
-    if (addresses.length > 0) {
-        const destination = addresses[addresses.length - 1];
-        const waypoints = addresses.slice(0, -1).join('|');
-        externalLink = `https://www.google.com/maps/dir/?api=1&destination=${destination}&waypoints=${waypoints}`;
-    }
-
-    return (
-      <div className="p-4 space-y-4">
-        <div className="bg-white p-4 rounded-[2rem] shadow-sm text-center border border-slate-100">
-          <div className="flex items-center justify-between mb-4 px-2">
-              <div className="flex items-center gap-2">
-                  <div className="w-10 h-10 bg-blue-50 rounded-full flex items-center justify-center text-blue-500"><Map size={20} /></div>
-                  <div className="text-left">
-                      <h3 className="text-sm font-extrabold text-slate-800">路線地圖</h3>
-                      <p className="text-[10px] text-slate-400">{addresses.length} 個停靠點</p>
-                  </div>
-              </div>
-              <a href={externalLink} target="_blank" rel="noopener noreferrer" className="bg-blue-600 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-lg shadow-blue-200 hover:bg-blue-700 transition-colors">Google Maps App</a>
-          </div>
-          <div className="w-full h-64 bg-slate-100 rounded-2xl overflow-hidden border border-slate-200 relative">
-              <iframe title="Map Preview" width="100%" height="100%" frameBorder="0" scrolling="no" src={iframeSrc} className="w-full h-full opacity-90 hover:opacity-100 transition-opacity"></iframe>
-              <div className="absolute inset-0 pointer-events-none border-4 border-white/50 rounded-2xl"></div>
-          </div>
-        </div>
-      </div>
-    )
-}
-
-function ToolboxView() {
-    const [amount, setAmount] = useState('1000');
-    const [fromCurr, setFromCurr] = useState('JPY');
-    const [toCurr, setToCurr] = useState('TWD');
-    const DEFAULT_RATES = { JPY: 0.22, TWD: 1, USD: 31.5, EUR: 34.2, KRW: 0.024, CNY: 4.4 };
-    const [customRate, setCustomRate] = useState(DEFAULT_RATES['JPY']);
-
-    useEffect(() => {
-        const newRate = DEFAULT_RATES[fromCurr] / DEFAULT_RATES[toCurr];
-        setCustomRate(parseFloat(newRate.toFixed(4)));
-    }, [fromCurr, toCurr]);
-
-    const result = Math.round(amount * customRate * 100) / 100;
-
-    const [checklist, setChecklist] = useState(() => { const saved = localStorage.getItem('my-travel-checklist'); return saved ? JSON.parse(saved) : [{ id: 1, text: '護照 & 簽證', checked: false }, { id: 2, text: '網卡 / Roaming 開通', checked: false }, { id: 3, text: '行動電源 & 充電線', checked: false }, { id: 4, text: '當地現金 / 信用卡', checked: false }, { id: 5, text: '個人藥品', checked: false }];});
-    useEffect(() => { localStorage.setItem('my-travel-checklist', JSON.stringify(checklist)); }, [checklist]);
-    const toggleCheck = (id) => { setChecklist(checklist.map(item => item.id === id ? { ...item, checked: !item.checked } : item)); };
-
-    const handleExport = async () => {
-        if(!auth.currentUser) return alert("請先登入");
-        try {
-            const tripsQ = query(collection(db, "trips"), where("uid", "==", auth.currentUser.uid));
-            const expsQ = query(collection(db, "expenses"), where("uid", "==", auth.currentUser.uid));
-            const [tripsSnap, expsSnap] = await Promise.all([getDocs(tripsQ), getDocs(expsQ)]);
-            const data = {
-                version: "1.0",
-                exportedAt: new Date().toISOString(),
-                trips: tripsSnap.docs.map(d => ({...d.data(), _legacyId: d.id})),
-                expenses: expsSnap.docs.map(d => d.data())
-            };
-            const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `travel_os_backup_${new Date().toISOString().slice(0,10)}.json`;
-            a.click();
-            URL.revokeObjectURL(url);
-        } catch(e) { console.error(e); alert("匯出失敗"); }
-    };
-
-    const fileInputRef = useRef(null);
-    const handleImportClick = () => fileInputRef.current.click();
-    const handleFileChange = async (e) => {
-        const file = e.target.files[0];
-        if(!file) return;
-        if(!auth.currentUser) return alert("請先登入");
-        if(!window.confirm("確定要匯入資料嗎？")) return;
-
-        const reader = new FileReader();
-        reader.onload = async (event) => {
-            try {
-                const data = JSON.parse(event.target.result);
-                if(!data.trips) throw new Error("無效的檔案格式");
-                const batch = writeBatch(db);
-                const newUserId = auth.currentUser.uid;
-                const newUserEmail = auth.currentUser.email;
-                const tripIdMap = {};
-
-                data.trips.forEach(trip => {
-                    const newTripRef = doc(collection(db, "trips"));
-                    const oldId = trip._legacyId || trip.id;
-                    if(oldId) tripIdMap[oldId] = newTripRef.id;
-                    const { _legacyId, id, ...tripContent } = trip; 
-                    batch.set(newTripRef, { ...tripContent, uid: newUserId, ownerEmail: newUserEmail, allowedEmails: [newUserEmail], importedAt: new Date().toISOString() });
-                });
-
-                if(data.expenses) {
-                    data.expenses.forEach(exp => {
-                        const newTripId = tripIdMap[exp.tripId];
-                        if(newTripId) {
-                            const newExpRef = doc(collection(db, "expenses"));
-                            const { id, ...expContent } = exp;
-                            batch.set(newExpRef, { ...expContent, uid: newUserId, tripId: newTripId });
-                        }
-                    });
-                }
-                await batch.commit();
-                alert(`成功匯入 ${data.trips.length} 個旅程！`);
-                window.location.reload();
-            } catch(err) { console.error(err); alert("匯入失敗"); }
-        };
-        reader.readAsText(file);
-    };
-
-    return (
-      <div className="p-4 space-y-6 pb-20">
-        <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100">
-          <h3 className="font-extrabold text-slate-800 mb-6 flex items-center gap-2 text-lg"><Calculator size={20}/> 匯率試算</h3>
-          <div className="flex gap-4 items-center mb-4">
-             <div className="flex-1">
-                 <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">持有</label>
-                 <div className="flex items-center gap-2 bg-slate-50 p-2 rounded-xl border border-slate-200">
-                     <input type="number" value={amount} onChange={e => setAmount(e.target.value)} className="w-full bg-transparent font-bold outline-none text-lg" />
-                     <select value={fromCurr} onChange={e => setFromCurr(e.target.value)} className="bg-transparent font-bold text-sm outline-none">{CURRENCIES.map(c=><option key={c.code} value={c.code}>{c.code}</option>)}</select>
-                 </div>
-             </div>
-             <ArrowRight className="text-slate-300" />
-             <div className="flex-1">
-                 <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">換算</label>
-                 <div className="flex items-center gap-2 bg-emerald-50 p-2 rounded-xl border border-emerald-100">
-                     <div className="w-full font-bold text-lg text-emerald-600">{result.toLocaleString()}</div>
-                     <select value={toCurr} onChange={e => setToCurr(e.target.value)} className="bg-transparent font-bold text-sm outline-none text-emerald-700">{CURRENCIES.map(c=><option key={c.code} value={c.code}>{c.code}</option>)}</select>
-                 </div>
-             </div>
-          </div>
-          <div className="flex items-center gap-2 justify-center mt-2">
-             <span className="text-[10px] text-slate-400">自訂匯率: 1 {fromCurr} =</span>
-             <input type="number" value={customRate} onChange={e => setCustomRate(e.target.value)} className="w-20 bg-slate-50 border border-slate-200 rounded px-2 py-1 text-center text-xs font-bold focus:border-black outline-none" />
-             <span className="text-[10px] text-slate-400">{toCurr}</span>
-          </div>
-        </div>
-        
-        <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100">
-            <h3 className="font-extrabold text-slate-800 mb-4 flex items-center gap-2 text-lg"><CloudUpload size={20}/> 數據管理</h3>
-            <p className="text-xs text-slate-400 mb-4 leading-relaxed">您可以匯出所有旅程與記帳資料進行備份。</p>
-            <div className="flex gap-3">
-                <button onClick={handleExport} className="flex-1 bg-slate-800 text-white py-3 rounded-xl font-bold text-sm shadow-lg hover:bg-black transition-colors flex items-center justify-center gap-2">
-                    <ArrowRight size={14} className="-rotate-45"/> 匯出備份
-                </button>
-                <button onClick={handleImportClick} className="flex-1 bg-white border-2 border-slate-200 text-slate-600 py-3 rounded-xl font-bold text-sm hover:border-slate-800 hover:text-slate-800 transition-colors flex items-center justify-center gap-2">
-                    <ArrowRight size={14} className="rotate-135"/> 匯入資料
-                </button>
-                <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".json" />
-            </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100">
-          <h3 className="font-extrabold text-slate-800 mb-6 flex items-center gap-2 text-lg"><CheckSquare size={20}/> 行前確認</h3>
-          <div className="space-y-3">
-            {checklist.map(item => (
-              <div key={item.id} onClick={() => toggleCheck(item.id)} className="flex items-center gap-4 cursor-pointer group p-3 hover:bg-slate-50 rounded-xl transition-colors">
-                <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${item.checked ? 'bg-black border-black scale-110' : 'border-slate-300 bg-white'}`}>{item.checked && <CheckSquare size={14} className="text-white" />}</div>
-                <span className={`text-sm font-bold transition-colors ${item.checked ? 'text-slate-400 line-through' : 'text-slate-700'}`}>{item.text}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    )
 }
 
 function ItemModal({ initialData, tripTimezone, onClose, onSave }) {
@@ -774,11 +632,75 @@ function ItemModal({ initialData, tripTimezone, onClose, onSave }) {
   );
 }
 
-function TabButton({ icon: Icon, label, isActive, onClick }) {
+function MapView({ currentDay, location }) {
+    const addresses = currentDay?.schedule?.filter(item => item.address && item.address.length > 2).map(item => encodeURIComponent(item.address)) || [];
+    let routeUrl = `http://googleusercontent.com/maps.google.com/search?q=${encodeURIComponent(location)}`;
+    if (addresses.length > 0) {
+        const destination = addresses[addresses.length - 1];
+        const waypoints = addresses.slice(0, -1).join('|');
+        routeUrl = `http://googleusercontent.com/maps.google.com/dir/?api=1&destination=${destination}&waypoints=${waypoints}`;
+    }
     return (
-      <button onClick={onClick} className={`flex flex-col items-center gap-1.5 w-16 transition-all duration-300 ${isActive ? 'text-black scale-110' : 'text-slate-300 hover:text-slate-500'}`}>
-        <Icon size={24} strokeWidth={isActive ? 2.5 : 2} />
-        <span className="text-[10px] font-bold tracking-wide">{label}</span>
-      </button>
+      <div className="p-4 space-y-4">
+        <div className="bg-white p-8 rounded-[2rem] shadow-sm text-center border border-slate-100">
+          <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-4 text-blue-500"><Map size={32} /></div>
+          <h3 className="text-xl font-extrabold text-slate-800 mb-2">今日路線圖</h3>
+          <p className="text-sm text-slate-400 mb-6">已自動偵測 {addresses.length} 個地點</p>
+          <a href={routeUrl} target="_blank" rel="noopener noreferrer" className="block w-full bg-blue-600 text-white py-4 rounded-xl font-bold shadow-lg shadow-blue-200 hover:shadow-blue-300 hover:-translate-y-1 transition-all">開啟 Google Maps 導航</a>
+        </div>
+      </div>
+    )
+}
+
+function ToolboxView() {
+    const [amount, setAmount] = useState('1000');
+    const [fromCurr, setFromCurr] = useState('JPY');
+    const [toCurr, setToCurr] = useState('TWD');
+    const RATES = { 
+        JPY: 0.22, TWD: 1, USD: 31.5, EUR: 34.2, KRW: 0.024, CNY: 4.4 
+    };
+    
+    const result = Math.round(amount * (RATES[fromCurr] / RATES[toCurr]) * 100) / 100;
+
+    const [checklist, setChecklist] = useState(() => { const saved = localStorage.getItem('my-travel-checklist'); return saved ? JSON.parse(saved) : [{ id: 1, text: '護照 & 簽證', checked: false }, { id: 2, text: '網卡 / Roaming 開通', checked: false }, { id: 3, text: '行動電源 & 充電線', checked: false }, { id: 4, text: '當地現金 / 信用卡', checked: false }, { id: 5, text: '個人藥品', checked: false }];});
+    useEffect(() => { localStorage.setItem('my-travel-checklist', JSON.stringify(checklist)); }, [checklist]);
+    const toggleCheck = (id) => { setChecklist(checklist.map(item => item.id === id ? { ...item, checked: !item.checked } : item)); };
+
+    return (
+      <div className="p-4 space-y-6 pb-20">
+        <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100">
+          <h3 className="font-extrabold text-slate-800 mb-6 flex items-center gap-2 text-lg"><Calculator size={20}/> 匯率試算</h3>
+          <div className="flex gap-4 items-center mb-4">
+             <div className="flex-1">
+                 <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">持有</label>
+                 <div className="flex items-center gap-2 bg-slate-50 p-2 rounded-xl border border-slate-200">
+                     <input type="number" value={amount} onChange={e => setAmount(e.target.value)} className="w-full bg-transparent font-bold outline-none text-lg" />
+                     <select value={fromCurr} onChange={e => setFromCurr(e.target.value)} className="bg-transparent font-bold text-sm outline-none">{CURRENCIES.map(c=><option key={c.code} value={c.code}>{c.code}</option>)}</select>
+                 </div>
+             </div>
+             <ArrowRight className="text-slate-300" />
+             <div className="flex-1">
+                 <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">換算</label>
+                 <div className="flex items-center gap-2 bg-emerald-50 p-2 rounded-xl border border-emerald-100">
+                     <div className="w-full font-bold text-lg text-emerald-600">{result.toLocaleString()}</div>
+                     <select value={toCurr} onChange={e => setToCurr(e.target.value)} className="bg-transparent font-bold text-sm outline-none text-emerald-700">{CURRENCIES.map(c=><option key={c.code} value={c.code}>{c.code}</option>)}</select>
+                 </div>
+             </div>
+          </div>
+          <div className="text-[10px] text-slate-400 text-center">匯率僅供參考 (1 {fromCurr} ≈ {(RATES[fromCurr]/RATES[toCurr]).toFixed(3)} {toCurr})</div>
+        </div>
+        
+        <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100">
+          <h3 className="font-extrabold text-slate-800 mb-6 flex items-center gap-2 text-lg"><CheckSquare size={20}/> 行前確認</h3>
+          <div className="space-y-3">
+            {checklist.map(item => (
+              <div key={item.id} onClick={() => toggleCheck(item.id)} className="flex items-center gap-4 cursor-pointer group p-3 hover:bg-slate-50 rounded-xl transition-colors">
+                <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${item.checked ? 'bg-black border-black scale-110' : 'border-slate-300 bg-white'}`}>{item.checked && <CheckSquare size={14} className="text-white" />}</div>
+                <span className={`text-sm font-bold transition-colors ${item.checked ? 'text-slate-400 line-through' : 'text-slate-700'}`}>{item.text}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
     )
 }
