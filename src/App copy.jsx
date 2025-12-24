@@ -107,9 +107,9 @@ export default function App() {
   // --- 首頁 ---
   if (!currentTripId) {
     return (
-      <div className="min-h-screen bg-zen-bg p-6 pb-20 font-sans relative">
+      <div className="min-h-screen bg-hero-sand-50 p-6 pb-20 font-sans relative">
         <header className="mb-8 mt-4">
-          <h1 className="text-3xl font-serif font-bold text-zen-text tracking-widest">TRAVEL OS</h1>
+          <h1 className="text-3xl font-sans font-bold text-hero-dark tracking-widest">TRAVEL OS</h1>
           <p className="text-sm text-gray-400 mt-2">Personal Travel Database</p>
         </header>
 
@@ -119,7 +119,7 @@ export default function App() {
               <div className="relative h-56 rounded-3xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-500">
                 <img src={trip.coverImage} alt={trip.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent flex flex-col justify-end p-6">
-                  <h2 className="text-2xl font-serif font-bold text-white mb-1">{trip.title}</h2>
+                  <h2 className="text-2xl font-sans font-bold text-white mb-1">{trip.title}</h2>
                   <div className="flex justify-between items-end">
                     <div className="flex flex-col gap-1 text-white/80 text-xs">
                        <div className="flex items-center gap-2"><Calendar size={12} /> {trip.dates}</div>
@@ -133,7 +133,7 @@ export default function App() {
           ))}
         </div>
 
-        <button onClick={() => setShowAddTripModal(true)} className="fixed bottom-8 right-6 bg-zen-text text-white p-4 rounded-full shadow-2xl hover:bg-black transition-transform active:scale-95 z-50"><Plus size={24} /></button>
+        <button onClick={() => setShowAddTripModal(true)} className="fixed bottom-8 right-6 bg-zen-text text-white p-4 rounded-full shadow-2xl hover:bg-hero-sky-500 hover:bg-hero-sky-600 transition-transform active:scale-95 z-50"><Plus size={24} /></button>
         {showAddTripModal && <AddTripModal onClose={() => setShowAddTripModal(false)} onSave={handleAddTrip} />}
       </div>
     );
@@ -183,11 +183,11 @@ function TripDetail({ trip, expenses, categories, onBack, onUpdate, onAddExpense
   };
 
   return (
-    <div className="min-h-screen bg-zen-bg text-zen-text font-sans pb-24">
-      <div className="sticky top-0 z-40 bg-zen-bg/95 backdrop-blur px-4 py-4 flex items-center gap-4 border-b border-gray-100">
+    <div className="min-h-screen bg-hero-sand-50 text-hero-dark font-sans pb-24">
+      <div className="sticky top-0 z-40 bg-hero-sand-50/95 backdrop-blur px-4 py-4 flex items-center gap-4 border-b border-gray-100">
         <button onClick={onBack} className="p-2 hover:bg-gray-100 rounded-full transition-colors"><ArrowLeft size={20} /></button>
         <div className="flex-1 min-w-0">
-          <h1 className="font-serif font-bold text-lg truncate">{trip.title}</h1>
+          <h1 className="font-sans font-bold text-lg truncate">{trip.title}</h1>
           {trip.timezone && <div className="text-[10px] text-gray-500 flex items-center gap-1"><Globe size={10} /> {trip.timezone}</div>}
         </div>
       </div>
@@ -197,7 +197,7 @@ function TripDetail({ trip, expenses, categories, onBack, onUpdate, onAddExpense
           {trip.days.map((d, i) => (
             <button key={i} onClick={() => setActiveDayIdx(i)}
               className={`flex-shrink-0 px-5 py-2 rounded-2xl text-sm font-medium transition-all ${
-                i === activeDayIdx ? 'bg-zen-text text-white shadow-lg transform scale-105' : 'bg-white text-gray-400 border border-gray-100'
+                i === activeDayIdx ? 'bg-zen-text text-white shadow-lg transform scale-105' : 'bg-hero-sand-50 text-gray-400 border border-gray-100'
               }`}>
               <span className="block text-xs opacity-60">{d.weekday}</span>
               {d.date}
@@ -225,7 +225,7 @@ function TripDetail({ trip, expenses, categories, onBack, onUpdate, onAddExpense
         {activeTab === 'tools' && <ToolboxView />}
       </div>
 
-      <div className="fixed bottom-0 w-full bg-white border-t border-gray-200 flex justify-around items-center p-2 pb-6 z-50">
+      <div className="fixed bottom-0 w-full bg-hero-sand-50 border-t border-gray-200 flex justify-around items-center p-2 pb-6 z-50">
         <TabButton icon={List} label="行程" isActive={activeTab === 'plan'} onClick={() => setActiveTab('plan')} />
         <TabButton icon={Map} label="地圖" isActive={activeTab === 'map'} onClick={() => setActiveTab('map')} />
         <TabButton icon={Wallet} label="記帳" isActive={activeTab === 'budget'} onClick={() => setActiveTab('budget')} />
@@ -256,15 +256,15 @@ function BudgetView({ trip, expenses, categories, onAddExpense, onDeleteExpense,
         <div className="relative z-10">
           <div className="flex justify-between items-start mb-2">
              <span className="text-gray-400 text-xs font-bold uppercase tracking-wider">Total Spent (TWD)</span>
-             <button onClick={handleEditBudget} className="bg-white/10 p-1.5 rounded-full hover:bg-white/20 text-xs flex items-center gap-1">
+             <button onClick={handleEditBudget} className="bg-hero-sand-50/10 p-1.5 rounded-full hover:bg-hero-sand-50/20 text-xs flex items-center gap-1">
                <Edit2 size={10} /> 預算 ${budget.toLocaleString()}
              </button>
           </div>
-          <div className="text-4xl font-serif font-bold mb-4">
+          <div className="text-4xl font-sans font-bold mb-4">
             <span className="text-lg mr-1">$</span>{Math.round(totalSpentTWD).toLocaleString()}
           </div>
           <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
-             <div className={`h-full transition-all duration-1000 ${progress > 90 ? 'bg-red-500' : 'bg-zen-green'}`} style={{ width: `${progress}%` }}></div>
+             <div className={`h-full transition-all duration-1000 ${progress > 90 ? 'bg-red-500' : 'bg-hero-deku-500'}`} style={{ width: `${progress}%` }}></div>
           </div>
           <div className="flex justify-between text-[10px] text-gray-400 mt-1">
              <span>{Math.round(progress)}%</span>
@@ -277,23 +277,23 @@ function BudgetView({ trip, expenses, categories, onAddExpense, onDeleteExpense,
       {/* 支出列表 */}
       <div className="space-y-4">
         <div className="flex justify-between items-end">
-           <h3 className="font-bold text-zen-text text-lg">近期支出</h3>
+           <h3 className="font-bold text-hero-dark text-lg">近期支出</h3>
            <div className="text-xs text-gray-400">共 {expenses.length} 筆</div>
         </div>
 
         {expenses.length === 0 ? (
-           <div className="text-center py-10 text-gray-400 text-sm bg-white rounded-3xl border border-dashed border-gray-200">尚無紀錄</div>
+           <div className="text-center py-10 text-gray-400 text-sm bg-hero-sand-50 rounded-3xl border border-dashed border-gray-200">尚無紀錄</div>
         ) : (
           <div className="space-y-3">
             {expenses.map((item) => (
-                <div key={item.id} className="bg-white p-4 rounded-2xl shadow-sm border border-gray-50 flex flex-col gap-2 group">
+                <div key={item.id} className="bg-hero-sand-50 p-4 rounded-2xl shadow-sm border border-gray-50 flex flex-col gap-2 group">
                    <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
                           <div className={`w-10 h-10 rounded-full flex items-center justify-center bg-gray-100 text-gray-600 font-bold text-xs`}>
                             {item.category ? item.category[0] : '無'}
                           </div>
                           <div>
-                            <div className="font-bold text-zen-text">{item.title}</div>
+                            <div className="font-bold text-hero-dark">{item.title}</div>
                             <div className="text-[10px] text-gray-400 flex gap-2">
                                <span className="bg-gray-100 px-1 rounded">{item.category}</span>
                                {item.subCategory && <span className="bg-gray-50 px-1 rounded">{item.subCategory}</span>}
@@ -371,10 +371,10 @@ function AddExpenseModal({ tripId, categories, onClose, onSave }) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] flex items-end sm:items-center justify-center sm:p-4">
-      <div className="bg-white w-full sm:max-w-lg rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl animate-slide-up sm:animate-fade-in max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-hero-sky-500 hover:bg-hero-sky-600/50 backdrop-blur-sm z-[60] flex items-end sm:items-center justify-center sm:p-4">
+      <div className="bg-hero-sand-50 w-full sm:max-w-lg rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl animate-slide-up sm:animate-fade-in max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center mb-6">
-          <h3 className="text-xl font-serif font-bold text-zen-text">新增支出</h3>
+          <h3 className="text-xl font-sans font-bold text-hero-dark">新增支出</h3>
           <button onClick={onClose}><X size={24} className="text-gray-400" /></button>
         </div>
 
@@ -388,7 +388,7 @@ function AddExpenseModal({ tripId, categories, onClose, onSave }) {
                      value={formData.amount} onChange={handleChange} autoFocus />
                 </div>
                 <div className="w-24">
-                   <select name="currency" value={formData.currency} onChange={handleChange} className="w-full bg-white p-2 rounded-lg text-sm font-bold outline-none border border-gray-200">
+                   <select name="currency" value={formData.currency} onChange={handleChange} className="w-full bg-hero-sand-50 p-2 rounded-lg text-sm font-bold outline-none border border-gray-200">
                       {CURRENCIES.map(c => <option key={c.code} value={c.code}>{c.code}</option>)}
                    </select>
                 </div>
@@ -398,7 +398,7 @@ function AddExpenseModal({ tripId, categories, onClose, onSave }) {
                    <span className="text-xs text-gray-400">匯率</span>
                    <input type="number" name="rate" value={formData.rate} onChange={handleChange} className="w-full bg-transparent text-sm border-b border-gray-300 outline-none" />
                 </div>
-                <div className="text-sm font-bold text-zen-text bg-zen-text/10 px-3 py-1 rounded-full">
+                <div className="text-sm font-bold text-hero-dark bg-zen-text/10 px-3 py-1 rounded-full">
                    ≈ TWD {formData.twdAmount.toLocaleString()}
                 </div>
              </div>
@@ -425,7 +425,7 @@ function AddExpenseModal({ tripId, categories, onClose, onSave }) {
              
              {/* 下拉選單 (自動過濾 + 常用) */}
              {showCategoryList && (
-               <div className="absolute z-10 w-full mt-2 bg-white rounded-xl shadow-xl border border-gray-100 max-h-40 overflow-y-auto p-2 grid grid-cols-3 gap-2">
+               <div className="absolute z-10 w-full mt-2 bg-hero-sand-50 rounded-xl shadow-xl border border-gray-100 max-h-40 overflow-y-auto p-2 grid grid-cols-3 gap-2">
                  {categories.filter(c => c.includes(formData.category)).map(cat => (
                    <button 
                      key={cat} 
@@ -503,10 +503,10 @@ function AddTripModal({ onClose, onSave }) {
     title: '', dates: '', timezone: 'Asia/Taipei', coverImage: 'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=800&q=80' 
   });
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
-      <div className="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl animate-fade-in">
+    <div className="fixed inset-0 bg-hero-sky-500 hover:bg-hero-sky-600/50 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
+      <div className="bg-hero-sand-50 rounded-3xl p-6 w-full max-w-sm shadow-2xl animate-fade-in">
         <div className="flex justify-between items-center mb-6">
-          <h3 className="text-xl font-serif font-bold text-zen-text">新增旅程</h3>
+          <h3 className="text-xl font-sans font-bold text-hero-dark">新增旅程</h3>
           <button onClick={onClose}><X size={24} className="text-gray-400" /></button>
         </div>
         <form onSubmit={(e) => { e.preventDefault(); onSave({ id: Date.now().toString(), ...formData, days: [] }); }} className="space-y-4">
@@ -580,8 +580,8 @@ function PlanView({ trip, activeDayIdx, onUpdate }) {
           {currentDay.schedule?.length === 0 && <div className="text-center py-10 text-gray-400 text-sm pl-8">此日尚無行程</div>}
           {currentDay.schedule?.map((item, idx) => (
             <div key={idx} className="relative pl-8 group">
-              <div className={`absolute left-0 top-1 w-3 h-3 rounded-full border-2 border-white z-10 ${item.highlight ? 'bg-zen-red ring-4 ring-red-100' : 'bg-gray-400'}`}></div>
-              <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-50 hover:shadow-md transition-shadow relative">
+              <div className={`absolute left-0 top-1 w-3 h-3 rounded-full border-2 border-white z-10 ${item.highlight ? 'bg-hero-smash-500 ring-4 ring-red-100' : 'bg-gray-400'}`}></div>
+              <div className="bg-hero-sand-50 p-5 rounded-2xl shadow-sm border border-gray-50 hover:shadow-md transition-shadow relative">
                 <div className="absolute top-3 right-3 flex gap-2 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
                     <button onClick={() => {setEditingItem(item); setShowItemModal(true)}} className="p-1.5 bg-gray-100 rounded-full text-gray-500 hover:text-blue-600"><Edit2 size={14} /></button>
                     <button onClick={() => handleDeleteItem(idx)} className="p-1.5 bg-gray-100 rounded-full text-gray-500 hover:text-red-500"><Trash2 size={14} /></button>
@@ -593,16 +593,16 @@ function PlanView({ trip, activeDayIdx, onUpdate }) {
                     </div>
                     {item.duration && <span className="text-[10px] text-gray-400 flex items-center gap-1"><Clock size={10} /> {item.duration} hr</span>}
                 </div>
-                <h3 className={`text-lg font-bold mb-1 ${item.highlight ? 'text-zen-red' : 'text-zen-text'}`}>{item.title}</h3>
+                <h3 className={`text-lg font-bold mb-1 ${item.highlight ? 'text-hero-smash-500' : 'text-hero-dark'}`}>{item.title}</h3>
                 <div className="text-xs text-gray-400 mb-2 flex items-center gap-1">
                   <MapPin size={10}/> 
                   {item.address ? <a href={`http://googleusercontent.com/maps.google.com/?q=${encodeURIComponent(item.address)}`} target="_blank" rel="noreferrer" className="underline decoration-dotted hover:text-blue-600">{item.address}</a> : '未設定地點'}
                 </div>
-                {item.tips && <div className="mt-2 p-3 bg-zen-bg rounded-xl border border-gray-100 text-xs text-gray-600 leading-relaxed">💡 {item.tips}</div>}
+                {item.tips && <div className="mt-2 p-3 bg-hero-sand-50 rounded-xl border border-gray-100 text-xs text-gray-600 leading-relaxed">💡 {item.tips}</div>}
               </div>
             </div>
           ))}
-          <button onClick={openAddModal} className="w-full ml-8 mt-4 py-3 border-2 border-dashed border-gray-200 text-gray-400 rounded-xl hover:border-zen-text hover:text-zen-text transition-colors text-sm font-bold flex items-center justify-center gap-2"><Plus size={16} /> 新增行程</button>
+          <button onClick={openAddModal} className="w-full ml-8 mt-4 py-3 border-2 border-dashed border-gray-200 text-gray-400 rounded-xl hover:border-zen-text hover:text-hero-dark transition-colors text-sm font-bold flex items-center justify-center gap-2"><Plus size={16} /> 新增行程</button>
         </>
       )}
       {showItemModal && <ItemModal initialData={editingItem} defaultTime={defaultTime} onClose={() => setShowItemModal(false)} onSave={handleSaveItem} />}
@@ -615,9 +615,9 @@ function MapView({ currentDay, location }) {
   const routeUrl = addresses.length > 0 ? `http://googleusercontent.com/maps.google.com/dir/${addresses.join('/')}` : `http://googleusercontent.com/maps.google.com/?q=${location}`;
   return (
     <div className="p-4 space-y-4">
-      <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 text-center">
+      <div className="bg-hero-sand-50 p-6 rounded-3xl shadow-sm border border-gray-100 text-center">
         <div className="bg-blue-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 text-blue-500"><Map size={32} /></div>
-        <h3 className="text-xl font-serif font-bold text-zen-text mb-2">路線檢視</h3>
+        <h3 className="text-xl font-sans font-bold text-hero-dark mb-2">路線檢視</h3>
         <p className="text-xs text-gray-500 mb-6">系統已自動抓取今日 {addresses.length} 個地點。<br/>點擊下方按鈕，在 Google Maps 查看完整順路導航。</p>
         {addresses.length > 0 ? (
           <a href={routeUrl} target="_blank" rel="noreferrer" className="block w-full bg-blue-600 text-white py-3 rounded-xl font-bold shadow-lg shadow-blue-200 active:scale-95 transition-transform">開啟導航路線圖 🗺️</a>
@@ -653,8 +653,8 @@ function ToolboxView() {
   const toggleCheck = (id) => { setChecklist(checklist.map(item => item.id === id ? { ...item, checked: !item.checked } : item)); };
   return (
     <div className="p-4 space-y-6 pb-20">
-      <div className="bg-white p-5 rounded-3xl shadow-sm border border-gray-100">
-        <h3 className="font-bold text-zen-text mb-4 flex items-center gap-2"><Calculator size={18}/> 匯率試算</h3>
+      <div className="bg-hero-sand-50 p-5 rounded-3xl shadow-sm border border-gray-100">
+        <h3 className="font-bold text-hero-dark mb-4 flex items-center gap-2"><Calculator size={18}/> 匯率試算</h3>
         <div className="flex items-center gap-2 mb-4 bg-gray-50 p-2 rounded-xl">
            <span className="text-xs text-gray-400 pl-2">匯率:</span>
            <input type="number" value={rate} onChange={e => setRate(e.target.value)} className="bg-transparent w-20 font-mono text-sm outline-none border-b border-gray-300 focus:border-zen-text text-center" />
@@ -662,21 +662,21 @@ function ToolboxView() {
         <div className="flex gap-4 items-center">
           <div className="flex-1">
              <label className="text-[10px] font-bold text-gray-400 uppercase">JPY (日幣)</label>
-             <input type="number" value={jpy} onChange={e => setJpy(e.target.value)} placeholder="1000" className="w-full text-2xl font-serif font-bold p-2 border-b border-gray-200 outline-none focus:border-zen-text bg-transparent" />
+             <input type="number" value={jpy} onChange={e => setJpy(e.target.value)} placeholder="1000" className="w-full text-2xl font-sans font-bold p-2 border-b border-gray-200 outline-none focus:border-zen-text bg-transparent" />
           </div>
           <div className="text-gray-300">=</div>
           <div className="flex-1">
              <label className="text-[10px] font-bold text-gray-400 uppercase">TWD (台幣)</label>
-             <div className="w-full text-2xl font-serif font-bold p-2 text-zen-green">{jpy ? Math.round(jpy * rate).toLocaleString() : 0}</div>
+             <div className="w-full text-2xl font-sans font-bold p-2 text-hero-deku-700">{jpy ? Math.round(jpy * rate).toLocaleString() : 0}</div>
           </div>
         </div>
       </div>
-      <div className="bg-white p-5 rounded-3xl shadow-sm border border-gray-100">
-        <h3 className="font-bold text-zen-text mb-4 flex items-center gap-2"><CheckSquare size={18}/> 行前確認</h3>
+      <div className="bg-hero-sand-50 p-5 rounded-3xl shadow-sm border border-gray-100">
+        <h3 className="font-bold text-hero-dark mb-4 flex items-center gap-2"><CheckSquare size={18}/> 行前確認</h3>
         <div className="space-y-3">
           {checklist.map(item => (
             <div key={item.id} onClick={() => toggleCheck(item.id)} className="flex items-center gap-3 cursor-pointer group">
-              <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${item.checked ? 'bg-zen-text border-zen-text' : 'border-gray-300 bg-white'}`}>
+              <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${item.checked ? 'bg-zen-text border-zen-text' : 'border-gray-300 bg-hero-sand-50'}`}>
                 {item.checked && <CheckSquare size={12} className="text-white" />}
               </div>
               <span className={`text-sm transition-colors ${item.checked ? 'text-gray-400 line-through' : 'text-gray-700'}`}>{item.text}</span>
@@ -694,7 +694,7 @@ function ToolboxView() {
 
 function TabButton({ icon: Icon, label, isActive, onClick }) {
   return (
-    <button onClick={onClick} className={`flex flex-col items-center gap-1 w-16 transition-colors ${isActive ? 'text-zen-text' : 'text-gray-300'}`}>
+    <button onClick={onClick} className={`flex flex-col items-center gap-1 w-16 transition-colors ${isActive ? 'text-hero-dark' : 'text-gray-300'}`}>
       <Icon size={24} strokeWidth={isActive ? 2.5 : 2} />
       <span className="text-[10px] font-bold">{label}</span>
     </button>
@@ -705,10 +705,10 @@ function ItemModal({ initialData, defaultTime, onClose, onSave }) {
   const [formData, setFormData] = useState(initialData || { time: defaultTime, duration: '1', title: '', type: 'spot', address: '', tips: '', highlight: false });
   const handleChange = (e) => { const { name, value, type, checked } = e.target; setFormData(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value })); };
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] flex items-end sm:items-center justify-center sm:p-4">
-      <div className="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl animate-slide-up sm:animate-fade-in max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-hero-sky-500 hover:bg-hero-sky-600/50 backdrop-blur-sm z-[60] flex items-end sm:items-center justify-center sm:p-4">
+      <div className="bg-hero-sand-50 w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl animate-slide-up sm:animate-fade-in max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center mb-6">
-          <h3 className="text-xl font-serif font-bold text-zen-text">{initialData ? '編輯行程' : '新增行程'}</h3>
+          <h3 className="text-xl font-sans font-bold text-hero-dark">{initialData ? '編輯行程' : '新增行程'}</h3>
           <button onClick={onClose}><X size={24} className="text-gray-400" /></button>
         </div>
         <form onSubmit={(e) => { e.preventDefault(); onSave(formData); }} className="space-y-4">

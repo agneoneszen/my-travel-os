@@ -20,18 +20,18 @@ export default function MapView({ currentDay, location }) {
 
     return (
       <div className="p-4 space-y-4">
-        <div className="bg-white p-4 rounded-[2rem] shadow-sm text-center border border-slate-100">
+        <div className="bg-hero-sand-50 p-4 rounded-[2rem] shadow-sm text-center border border-slate-100">
           <div className="flex items-center justify-between mb-4 px-2">
               <div className="flex items-center gap-2">
                   <div className="w-10 h-10 bg-blue-50 rounded-full flex items-center justify-center text-blue-500"><Map size={20} /></div>
                   <div className="text-left">
-                      <h3 className="text-sm font-extrabold text-slate-800">路線地圖</h3>
-                      <p className="text-[10px] text-slate-400">{addresses.length} 個停靠點</p>
+                      <h3 className="text-sm font-extrabold text-hero-dark">路線地圖</h3>
+                      <p className="text-[10px] text-hero-dark-muted">{addresses.length} 個停靠點</p>
                   </div>
               </div>
               <a href={externalLink} target="_blank" rel="noopener noreferrer" className="bg-blue-600 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-lg shadow-blue-200 hover:bg-blue-700 transition-colors">Google Maps App</a>
           </div>
-          <div className="w-full h-64 bg-slate-100 rounded-2xl overflow-hidden border border-slate-200 relative">
+          <div className="w-full h-64 bg-hero-sand-100 rounded-2xl overflow-hidden border border-slate-200 relative">
               <iframe title="Map Preview" width="100%" height="100%" frameBorder="0" scrolling="no" src={iframeSrc} className="w-full h-full opacity-90 hover:opacity-100 transition-opacity"></iframe>
               <div className="absolute inset-0 pointer-events-none border-4 border-white/50 rounded-2xl"></div>
           </div>

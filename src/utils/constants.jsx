@@ -64,44 +64,39 @@ export const getAutoCover = (inputTitle) => {
     return COVER_IMAGES.default;
 };
 
-// 計算時間加總 (Start Time + Duration)
+// 計算時間加總 (Start Time + Duration) -> "HH:MM"
 export const addTime = (timeStr, durationHours) => {
     if (!timeStr) return '00:00';
     const [h, m] = timeStr.split(':').map(Number);
     const totalMinutes = h * 60 + m + (parseFloat(durationHours) * 60);
-    
-    // 簡單處理跨日 (超過 24 小時取餘數)
     const newTotalMinutes = totalMinutes % (24 * 60);
-    
     const newH = Math.floor(newTotalMinutes / 60);
     const newM = Math.round(newTotalMinutes % 60);
-    
     return `${newH.toString().padStart(2, '0')}:${newM.toString().padStart(2, '0')}`;
 };
 
-// ✨ 修復版：絕對準確的星期計算 (不受時區影響)
+// ✨ 新增：計算兩個時間點的分鐘差 (用於偵測空檔)
+export const getTimeDiff = (startStr, endStr) => {
+    if (!startStr || !endStr) return 0;
+    const [h1, m1] = startStr.split(':').map(Number);
+    const [h2, m2] = endStr.split(':').map(Number);
+    const startMins = h1 * 60 + m1;
+    const endMins = h2 * 60 + m2;
+    return endMins - startMins; // 回傳分鐘數
+};
+
 export const getWeekday = (dateStr) => {
     if (!dateStr) return '';
-    
-    // 強制解析 YYYY/MM/DD 或 YYYY-MM-DD
-    // 將分隔符號統一為 '/'
     const normalized = dateStr.replace(/-/g, '/');
     const parts = normalized.split('/');
-    
     if (parts.length !== 3) return '';
-    
     const year = parseInt(parts[0], 10);
-    const month = parseInt(parts[1], 10) - 1; // JS 月份是 0-11
+    const month = parseInt(parts[1], 10) - 1; 
     const day = parseInt(parts[2], 10);
-    
     const date = new Date(year, month, day);
-    
     if (isNaN(date.getTime())) return '';
-    
     const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     const zhDays = ['週日', '週一', '週二', '週三', '週四', '週五', '週六'];
-    
     const dayIdx = date.getDay();
-    
     return `${zhDays[dayIdx]} ${days[dayIdx]}`;
 };

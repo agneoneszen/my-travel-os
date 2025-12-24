@@ -20,7 +20,7 @@ const TYPE_ICONS = {
 };
 const TYPE_COLORS = {
   transport: 'bg-blue-100 text-blue-700', food: 'bg-orange-100 text-orange-700', spot: 'bg-emerald-100 text-emerald-700',
-  relax: 'bg-purple-100 text-purple-700', stay: 'bg-indigo-100 text-indigo-700', work: 'bg-slate-100 text-slate-700', other: 'bg-gray-100 text-gray-700'
+  relax: 'bg-purple-100 text-purple-700', stay: 'bg-indigo-100 text-indigo-700', work: 'bg-hero-sand-100 text-slate-700', other: 'bg-gray-100 text-gray-700'
 };
 const DEFAULT_CATEGORIES = ['餐飲', '交通', '購物', '住宿', '娛樂', '伴手禮', '機票', '其他'];
 const CURRENCIES = [
@@ -168,47 +168,47 @@ export default function App() {
   // --- Render ---
   if (!user) {
     return (
-      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6">
-        <div className="w-24 h-24 bg-black rounded-3xl flex items-center justify-center mb-8 shadow-2xl rotate-3"><span className="text-5xl">✈️</span></div>
-        <h1 className="text-4xl font-extrabold text-slate-800 mb-3">Travel OS</h1>
-        <p className="text-slate-400 mb-12">單人版．即時天氣．智慧記帳</p>
-        <button onClick={handleLogin} className="bg-black text-white px-10 py-4 rounded-full font-bold shadow-xl flex items-center gap-3"><LogIn size={20} /> 使用 Google 登入</button>
+      <div className="min-h-screen bg-hero-sand-50 flex flex-col items-center justify-center p-6">
+        <div className="w-24 h-24 bg-hero-sky-500 hover:bg-hero-sky-600 rounded-3xl flex items-center justify-center mb-8 shadow-2xl rotate-3"><span className="text-5xl">✈️</span></div>
+        <h1 className="text-4xl font-extrabold text-hero-dark mb-3">Travel OS</h1>
+        <p className="text-hero-dark-muted mb-12">單人版．即時天氣．智慧記帳</p>
+        <button onClick={handleLogin} className="bg-hero-sky-500 hover:bg-hero-sky-600 text-white px-10 py-4 rounded-full font-bold shadow-xl flex items-center gap-3"><LogIn size={20} /> 使用 Google 登入</button>
       </div>
     );
   }
 
   if (!currentTripId) {
     return (
-      <div className="min-h-screen bg-slate-50 p-6 pb-24 font-sans">
+      <div className="min-h-screen bg-hero-sand-50 p-6 pb-24 font-sans">
         <header className="mb-10 mt-4 flex justify-between items-center">
-          <div><h1 className="text-3xl font-extrabold text-slate-800">我的旅程</h1><p className="text-sm text-slate-400 mt-1 font-medium">{user.email}</p></div>
-          <button onClick={handleLogout} className="w-10 h-10 bg-white rounded-full text-slate-400 hover:text-red-500 shadow-sm flex items-center justify-center"><LogOut size={18} /></button>
+          <div><h1 className="text-3xl font-extrabold text-hero-dark">我的旅程</h1><p className="text-sm text-hero-dark-muted mt-1 font-medium">{user.email}</p></div>
+          <button onClick={handleLogout} className="w-10 h-10 bg-hero-sand-50 rounded-full text-hero-dark-muted hover:text-red-500 shadow-sm flex items-center justify-center"><LogOut size={18} /></button>
         </header>
         {isOffline && <div className="mb-6 bg-orange-50 border border-orange-100 text-orange-600 px-4 py-3 rounded-2xl flex items-center gap-2 text-sm font-bold"><WifiOff size={16}/> 離線模式</div>}
         
         {loading ? <div className="text-center text-slate-300 mt-20">載入中...</div> : (
           <div className="grid gap-6">
             {allTrips.map(trip => (
-              <div key={trip.id} onClick={() => setCurrentTripId(trip.id)} className="group relative bg-white rounded-[2rem] overflow-hidden shadow-sm hover:shadow-xl hover:scale-[1.01] transition-all duration-300 cursor-pointer h-64">
+              <div key={trip.id} onClick={() => setCurrentTripId(trip.id)} className="group relative bg-hero-sand-50 rounded-[2rem] overflow-hidden shadow-sm hover:shadow-xl hover:scale-[1.01] transition-all duration-300 cursor-pointer h-64">
                 <img src={trip.coverImage} alt={trip.title} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent p-6 flex flex-col justify-end">
                   <h2 className="text-2xl font-bold text-white mb-2">{trip.title}</h2>
                   <div className="flex justify-between items-end">
                     <div className="flex flex-col gap-1">
-                        <span className="text-white/90 text-xs font-medium bg-white/20 backdrop-blur-md px-3 py-1 rounded-full flex items-center gap-1 w-fit"><Calendar size={12} /> {formatDate(trip.dates)}</span>
+                        <span className="text-white/90 text-xs font-medium bg-hero-sand-50/20 backdrop-blur-md px-3 py-1 rounded-full flex items-center gap-1 w-fit"><Calendar size={12} /> {formatDate(trip.dates)}</span>
                     </div>
                     <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity translate-y-4 group-hover:translate-y-0">
-                       <button onClick={(e) => handleUpdateImage(e, trip)} className="w-8 h-8 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center text-white hover:bg-white hover:text-black"><Image size={14} /></button>
-                       <button onClick={(e) => handleDeleteTrip(e, trip.id)} className="w-8 h-8 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center text-white hover:bg-red-500"><Trash2 size={14} /></button>
+                       <button onClick={(e) => handleUpdateImage(e, trip)} className="w-8 h-8 bg-hero-sand-50/20 backdrop-blur-md rounded-full flex items-center justify-center text-white hover:bg-hero-sand-50 hover:text-black"><Image size={14} /></button>
+                       <button onClick={(e) => handleDeleteTrip(e, trip.id)} className="w-8 h-8 bg-hero-sand-50/20 backdrop-blur-md rounded-full flex items-center justify-center text-white hover:bg-red-500"><Trash2 size={14} /></button>
                     </div>
                   </div>
                 </div>
               </div>
             ))}
-            {allTrips.length === 0 && <div onClick={() => setShowAddTripModal(true)} className="h-48 rounded-[2rem] border-2 border-dashed border-slate-200 flex flex-col items-center justify-center text-slate-400 cursor-pointer hover:border-slate-400"><Plus size={32} className="mb-2"/><p className="font-bold">建立第一個旅程</p></div>}
+            {allTrips.length === 0 && <div onClick={() => setShowAddTripModal(true)} className="h-48 rounded-[2rem] border-2 border-dashed border-slate-200 flex flex-col items-center justify-center text-hero-dark-muted cursor-pointer hover:border-slate-400"><Plus size={32} className="mb-2"/><p className="font-bold">建立第一個旅程</p></div>}
           </div>
         )}
-        <button onClick={() => setShowAddTripModal(true)} className="fixed bottom-8 right-6 bg-black text-white w-16 h-16 rounded-full shadow-2xl hover:scale-110 transition-all flex items-center justify-center z-50"><Plus size={28} /></button>
+        <button onClick={() => setShowAddTripModal(true)} className="fixed bottom-8 right-6 bg-hero-sky-500 hover:bg-hero-sky-600 text-white w-16 h-16 rounded-full shadow-2xl hover:scale-110 transition-all flex items-center justify-center z-50"><Plus size={28} /></button>
         {showAddTripModal && <AddTripModal onClose={() => setShowAddTripModal(false)} onSave={handleAddTrip} />}
 
         {/* 底部按鈕已移除 */}
@@ -262,11 +262,11 @@ function TripDetail({ trip, expenses, categories, onBack, onUpdate, onAddExpense
     };
   
     return (
-      <div className="min-h-screen bg-slate-50 font-sans pb-28">
-        <div className="sticky top-0 z-40 bg-white/80 backdrop-blur-xl px-4 py-3 flex items-center gap-4 border-b border-slate-100">
-          <button onClick={onBack} className="p-2 bg-slate-100 rounded-full text-slate-600 hover:bg-slate-200"><ArrowLeft size={20} /></button>
+      <div className="min-h-screen bg-hero-sand-50 font-sans pb-28">
+        <div className="sticky top-0 z-40 bg-hero-sand-50/80 backdrop-blur-xl px-4 py-3 flex items-center gap-4 border-b border-slate-100">
+          <button onClick={onBack} className="p-2 bg-hero-sand-100 rounded-full text-slate-600 hover:bg-slate-200"><ArrowLeft size={20} /></button>
           <div className="flex-1 min-w-0">
-            <h1 className="font-extrabold text-slate-800 text-lg truncate">{trip.title}</h1>
+            <h1 className="font-extrabold text-hero-dark text-lg truncate">{trip.title}</h1>
             <div className="text-[10px] text-slate-500 flex items-center gap-2 font-medium">
                 {isOffline ? <span className="text-orange-500 flex items-center gap-1"><WifiOff size={10}/> 離線</span> : <span className="text-emerald-500 flex items-center gap-1"><Wifi size={10}/> 連線</span>}
                 <span className="flex items-center gap-1"><Calendar size={10}/> {formatDate(trip.dates)}</span>
@@ -278,13 +278,13 @@ function TripDetail({ trip, expenses, categories, onBack, onUpdate, onAddExpense
         {(activeTab === 'plan' || activeTab === 'map') && (
           <div className="px-4 py-3 overflow-x-auto no-scrollbar flex gap-2 items-center border-b border-slate-100/50">
             {trip.days && trip.days.map((d, i) => (
-              <div key={i} onClick={() => setActiveDayIdx(i)} className={`relative group flex-shrink-0 px-5 py-2.5 rounded-2xl text-xs font-bold transition-all cursor-pointer border ${i === activeDayIdx ? 'bg-black text-white shadow-lg scale-105 border-transparent' : 'bg-white text-slate-400 border-slate-100'}`}>
+              <div key={i} onClick={() => setActiveDayIdx(i)} className={`relative group flex-shrink-0 px-5 py-2.5 rounded-2xl text-xs font-bold transition-all cursor-pointer border ${i === activeDayIdx ? 'bg-hero-sky-500 hover:bg-hero-sky-600 text-white shadow-lg scale-105 border-transparent' : 'bg-hero-sand-50 text-hero-dark-muted border-slate-100'}`}>
                 <span className="block text-[9px] opacity-60 font-medium mb-0.5">{d.weekday}</span>
                 {d.date}
                 {i === activeDayIdx && <button onClick={(e) => handleDeleteDay(e, i)} className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-0.5"><X size={10} /></button>}
               </div>
             ))}
-            <button onClick={handleAddDay} className="flex-shrink-0 w-10 h-10 rounded-2xl bg-white border border-dashed border-slate-300 flex items-center justify-center text-slate-400 hover:bg-slate-50"><Plus size={18} /></button>
+            <button onClick={handleAddDay} className="flex-shrink-0 w-10 h-10 rounded-2xl bg-hero-sand-50 border border-dashed border-slate-300 flex items-center justify-center text-hero-dark-muted hover:bg-hero-sand-50"><Plus size={18} /></button>
           </div>
         )}
   
@@ -297,7 +297,7 @@ function TripDetail({ trip, expenses, categories, onBack, onUpdate, onAddExpense
         
         {/* MemberManagementModal 已被移除 */}
 
-        <div className="fixed bottom-0 w-full bg-white/90 backdrop-blur-xl border-t border-slate-100 flex justify-around items-center pb-8 pt-4 z-50">
+        <div className="fixed bottom-0 w-full bg-hero-sand-50/90 backdrop-blur-xl border-t border-slate-100 flex justify-around items-center pb-8 pt-4 z-50">
           <TabButton icon={List} label="行程" isActive={activeTab === 'plan'} onClick={() => setActiveTab('plan')} />
           <TabButton icon={Map} label="地圖" isActive={activeTab === 'map'} onClick={() => setActiveTab('map')} />
           <TabButton icon={Wallet} label="記帳" isActive={activeTab === 'budget'} onClick={() => setActiveTab('budget')} />
@@ -352,7 +352,7 @@ function WeatherWidget({ locationName, date }) {
         fetchWeather();
     }, [locationName, date]);
 
-    if (loading) return <div className="mx-4 mt-4 p-4 bg-slate-100 rounded-2xl animate-pulse text-xs text-slate-400 text-center">正在連線氣象衛星...</div>;
+    if (loading) return <div className="mx-4 mt-4 p-4 bg-hero-sand-100 rounded-2xl animate-pulse text-xs text-hero-dark-muted text-center">正在連線氣象衛星...</div>;
     if (!weather) return null;
 
     return (
@@ -411,7 +411,7 @@ function PlanView({ trip, activeDayIdx, onUpdate }) {
 
   return (
     <div className="pb-10">
-      {!currentDay ? <div className="text-center py-20 text-slate-400 text-sm">請先選擇日期</div> : (
+      {!currentDay ? <div className="text-center py-20 text-hero-dark-muted text-sm">請先選擇日期</div> : (
         <>
           <WeatherWidget locationName={trip.title} date={currentDay.date} />
           {schedule.length === 0 && <div className="text-center py-16 text-slate-300 text-sm">尚無行程，點擊下方新增</div>}
@@ -423,21 +423,21 @@ function PlanView({ trip, activeDayIdx, onUpdate }) {
                     <Draggable key={idx} draggableId={`item-${idx}`} index={idx}>
                       {(provided, snapshot) => (
                         <div ref={provided.innerRef} {...provided.draggableProps} onClick={() => {setEditingItem(item); setShowItemModal(true)}} className="relative group outline-none">
-                           <div className="absolute left-4 top-0 bottom-0 w-[2px] bg-slate-100 -z-10 group-hover:bg-slate-200 transition-colors"></div>
-                           <div className={`relative bg-white p-4 pl-3 rounded-2xl border transition-all cursor-pointer ${snapshot.isDragging ? 'shadow-2xl scale-105 z-50 border-black/10' : 'shadow-sm border-slate-50 hover:shadow-md hover:border-slate-200'}`}>
+                           <div className="absolute left-4 top-0 bottom-0 w-[2px] bg-hero-sand-100 -z-10 group-hover:bg-slate-200 transition-colors"></div>
+                           <div className={`relative bg-hero-sand-50 p-4 pl-3 rounded-2xl border transition-all cursor-pointer ${snapshot.isDragging ? 'shadow-2xl scale-105 z-50 border-black/10' : 'shadow-sm border-slate-50 hover:shadow-md hover:border-slate-200'}`}>
                              <div className="flex justify-between items-start">
-                                 <div {...provided.dragHandleProps} onClick={e => e.stopPropagation()} className="p-2 mr-1 text-slate-300 active:text-black cursor-grab touch-none hover:bg-slate-50 rounded-lg"><GripVertical size={16}/></div>
+                                 <div {...provided.dragHandleProps} onClick={e => e.stopPropagation()} className="p-2 mr-1 text-slate-300 active:text-black cursor-grab touch-none hover:bg-hero-sand-50 rounded-lg"><GripVertical size={16}/></div>
                                  <div className="flex-1 flex gap-4">
-                                     <div className="flex flex-col items-center gap-1 min-w-[3.5rem] pt-1"><span className="text-sm font-bold font-mono text-slate-700">{item.time}</span>{item.duration && <span className="text-[9px] text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded">{item.duration}h</span>}</div>
+                                     <div className="flex flex-col items-center gap-1 min-w-[3.5rem] pt-1"><span className="text-sm font-bold font-mono text-slate-700">{item.time}</span>{item.duration && <span className="text-[9px] text-hero-dark-muted bg-hero-sand-50 px-1.5 py-0.5 rounded">{item.duration}h</span>}</div>
                                      <div className="flex-1 min-w-0">
-                                        <h3 className={`font-bold text-slate-800 text-base truncate ${item.highlight ? 'text-red-500' : ''}`}>{item.title}</h3>
-                                        <div className="flex flex-wrap items-center gap-2 mt-2"><span className={`text-[10px] px-2 py-1 rounded-md font-bold flex items-center gap-1 ${TYPE_COLORS[item.type] || TYPE_COLORS.other}`}>{TYPE_ICONS[item.type] || TYPE_ICONS.other}</span>{item.timezone && item.timezone !== trip.timezone && <span className="text-[10px] bg-slate-100 text-slate-500 px-2 py-1 rounded-md flex items-center gap-1"><Globe size={10}/> {item.timezone.split('/')[1] || 'Zone'}</span>}</div>
-                                        {item.address && <a href={`http://googleusercontent.com/maps.google.com/search?q=${encodeURIComponent(item.address)}`} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className="text-[11px] text-slate-400 mt-2 flex items-center gap-1 truncate hover:text-blue-500 hover:underline"><MapPin size={10}/> {item.address}</a>}
+                                        <h3 className={`font-bold text-hero-dark text-base truncate ${item.highlight ? 'text-red-500' : ''}`}>{item.title}</h3>
+                                        <div className="flex flex-wrap items-center gap-2 mt-2"><span className={`text-[10px] px-2 py-1 rounded-md font-bold flex items-center gap-1 ${TYPE_COLORS[item.type] || TYPE_COLORS.other}`}>{TYPE_ICONS[item.type] || TYPE_ICONS.other}</span>{item.timezone && item.timezone !== trip.timezone && <span className="text-[10px] bg-hero-sand-100 text-slate-500 px-2 py-1 rounded-md flex items-center gap-1"><Globe size={10}/> {item.timezone.split('/')[1] || 'Zone'}</span>}</div>
+                                        {item.address && <a href={`http://googleusercontent.com/maps.google.com/search?q=${encodeURIComponent(item.address)}`} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className="text-[11px] text-hero-dark-muted mt-2 flex items-center gap-1 truncate hover:text-blue-500 hover:underline"><MapPin size={10}/> {item.address}</a>}
                                      </div>
                                  </div>
                                  <div className="flex flex-col gap-1 pl-2"><button onClick={(e) => { e.stopPropagation(); handleDeleteItem(idx); }} className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-full"><Trash2 size={14}/></button></div>
                              </div>
-                             {item.tips && <div className="mt-3 ml-10 text-[11px] text-slate-500 bg-slate-50 p-3 rounded-xl border border-slate-100 leading-relaxed">💡 {item.tips}</div>}
+                             {item.tips && <div className="mt-3 ml-10 text-[11px] text-slate-500 bg-hero-sand-50 p-3 rounded-xl border border-slate-100 leading-relaxed">💡 {item.tips}</div>}
                            </div>
                         </div>
                       )}
@@ -448,7 +448,7 @@ function PlanView({ trip, activeDayIdx, onUpdate }) {
               )}
             </Droppable>
           </DragDropContext>
-          <button onClick={() => {setEditingItem(null); setShowItemModal(true)}} className="mx-4 mt-6 py-4 border-2 border-dashed border-slate-200 text-slate-400 rounded-2xl font-bold hover:border-black hover:text-black transition-all flex items-center justify-center gap-2 text-sm w-[calc(100%-2rem)]"><Plus size={16} /> 新增行程</button>
+          <button onClick={() => {setEditingItem(null); setShowItemModal(true)}} className="mx-4 mt-6 py-4 border-2 border-dashed border-slate-200 text-hero-dark-muted rounded-2xl font-bold hover:border-black hover:text-black transition-all flex items-center justify-center gap-2 text-sm w-[calc(100%-2rem)]"><Plus size={16} /> 新增行程</button>
         </>
       )}
       {showItemModal && <ItemModal initialData={editingItem} tripTimezone={trip.timezone} onClose={() => setShowItemModal(false)} onSave={handleSaveItem} />}
@@ -481,16 +481,16 @@ function SettlementModal({ expenses, members, onClose }) {
     };
     const balances = calculateBalances();
     return (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[80] flex items-center justify-center p-6" onClick={onClose}>
-            <div onClick={e => e.stopPropagation()} className="bg-white w-full sm:max-w-md rounded-[2rem] p-8 shadow-2xl animate-fade-in">
-                <div className="flex justify-between items-center mb-6"><h3 className="text-xl font-extrabold text-slate-800 flex items-center gap-2"><DollarSign size={24} className="text-emerald-500"/> 結算報表</h3><button onClick={onClose}><X size={24} className="text-slate-400"/></button></div>
+        <div className="fixed inset-0 bg-hero-sky-500 hover:bg-hero-sky-600/60 backdrop-blur-sm z-[80] flex items-center justify-center p-6" onClick={onClose}>
+            <div onClick={e => e.stopPropagation()} className="bg-hero-sand-50 w-full sm:max-w-md rounded-[2rem] p-8 shadow-2xl animate-fade-in">
+                <div className="flex justify-between items-center mb-6"><h3 className="text-xl font-extrabold text-hero-dark flex items-center gap-2"><DollarSign size={24} className="text-emerald-500"/> 結算報表</h3><button onClick={onClose}><X size={24} className="text-hero-dark-muted"/></button></div>
                 <div className="space-y-4">
                     {members.map(member => {
                         const bal = Math.round(balances[member] || 0);
-                        return (<div key={member} className="flex justify-between items-center p-4 bg-slate-50 rounded-2xl"><span className="font-bold text-slate-700">{member}</span><span className={`font-mono font-bold text-lg ${bal >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>{bal >= 0 ? `收 $${bal.toLocaleString()}` : `付 $${Math.abs(bal).toLocaleString()}`}</span></div>)
+                        return (<div key={member} className="flex justify-between items-center p-4 bg-hero-sand-50 rounded-2xl"><span className="font-bold text-slate-700">{member}</span><span className={`font-mono font-bold text-lg ${bal >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>{bal >= 0 ? `收 $${bal.toLocaleString()}` : `付 $${Math.abs(bal).toLocaleString()}`}</span></div>)
                     })}
                 </div>
-                <div className="mt-6 text-xs text-slate-400 text-center">**公費** 不參與均分計算。<br/>正數代表應收，負數代表應付。</div>
+                <div className="mt-6 text-xs text-hero-dark-muted text-center">**公費** 不參與均分計算。<br/>正數代表應收，負數代表應付。</div>
             </div>
         </div>
     )
@@ -512,34 +512,34 @@ function BudgetView({ trip, expenses, categories, members, onAddExpense, onDelet
   
     return (
       <div className="p-4 pb-20 space-y-6">
-        <div className="bg-slate-900 text-white p-6 rounded-[2rem] shadow-xl shadow-slate-200 relative overflow-hidden">
+        <div className="bg-hero-dark text-white p-6 rounded-[2rem] shadow-xl shadow-slate-200 relative overflow-hidden">
           <div className="relative z-10">
-            <div className="flex justify-between items-center mb-4"><span className="text-slate-400 text-xs font-bold tracking-wider">總支出 (TWD)</span><div className="flex gap-2"><button onClick={() => setShowSettlement(true)} className="bg-emerald-500/20 text-emerald-300 backdrop-blur px-3 py-1 rounded-lg text-[10px] flex items-center gap-1 hover:bg-emerald-500/30 transition-colors font-bold"><DollarSign size={10} /> 結算</button><button onClick={handleEditBudget} className="bg-white/10 backdrop-blur px-3 py-1 rounded-lg text-[10px] flex items-center gap-1 hover:bg-white/20 transition-colors"><Edit2 size={10} /> 預算</button></div></div>
+            <div className="flex justify-between items-center mb-4"><span className="text-hero-dark-muted text-xs font-bold tracking-wider">總支出 (TWD)</span><div className="flex gap-2"><button onClick={() => setShowSettlement(true)} className="bg-emerald-500/20 text-emerald-300 backdrop-blur px-3 py-1 rounded-lg text-[10px] flex items-center gap-1 hover:bg-emerald-500/30 transition-colors font-bold"><DollarSign size={10} /> 結算</button><button onClick={handleEditBudget} className="bg-hero-sand-50/10 backdrop-blur px-3 py-1 rounded-lg text-[10px] flex items-center gap-1 hover:bg-hero-sand-50/20 transition-colors"><Edit2 size={10} /> 預算</button></div></div>
             <div className="text-4xl font-mono font-bold mb-6 tracking-tighter">${Math.round(totalSpentTWD).toLocaleString()}</div>
             <div className="h-2 bg-slate-800 rounded-full overflow-hidden mb-2"><div className={`h-full transition-all duration-1000 ${progress > 90 ? 'bg-red-500' : 'bg-emerald-400'}`} style={{ width: `${progress}%` }}></div></div>
-            <div className="flex justify-between text-[10px] text-slate-400"><span>{Math.round(progress)}%</span><span>剩餘 ${Math.max(0, budget - Math.round(totalSpentTWD)).toLocaleString()}</span></div>
+            <div className="flex justify-between text-[10px] text-hero-dark-muted"><span>{Math.round(progress)}%</span><span>剩餘 ${Math.max(0, budget - Math.round(totalSpentTWD)).toLocaleString()}</span></div>
           </div>
           <PieChart className="absolute -bottom-6 -right-6 text-white/5 w-48 h-48" />
         </div>
         <div className="space-y-3">
             {expenses.map((item) => (
-                <div key={item.id} onClick={() => handleOpenEdit(item)} className="bg-white p-4 rounded-2xl border border-slate-100 flex justify-between items-center group cursor-pointer hover:border-slate-300 transition-all hover:shadow-md">
+                <div key={item.id} onClick={() => handleOpenEdit(item)} className="bg-hero-sand-50 p-4 rounded-2xl border border-slate-100 flex justify-between items-center group cursor-pointer hover:border-slate-300 transition-all hover:shadow-md">
                     <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center text-lg">{item.category?.[0]}</div>
+                        <div className="w-10 h-10 rounded-full bg-hero-sand-50 flex items-center justify-center text-lg">{item.category?.[0]}</div>
                         <div>
-                            <div className="font-bold text-slate-800 text-sm">{item.title}</div>
-                            <div className="text-[10px] text-slate-400 font-medium flex gap-2 items-center">{item.category} <span className="w-1 h-1 bg-slate-300 rounded-full"></span> {item.date.slice(5)} {(item.payer || item.forWho) && <span className="text-slate-500 bg-slate-100 px-1.5 rounded">付:{item.payer} / 算:{item.forWho === '全體' ? 'All' : item.forWho}</span>}</div>
+                            <div className="font-bold text-hero-dark text-sm">{item.title}</div>
+                            <div className="text-[10px] text-hero-dark-muted font-medium flex gap-2 items-center">{item.category} <span className="w-1 h-1 bg-slate-300 rounded-full"></span> {item.date.slice(5)} {(item.payer || item.forWho) && <span className="text-slate-500 bg-hero-sand-100 px-1.5 rounded">付:{item.payer} / 算:{item.forWho === '全體' ? 'All' : item.forWho}</span>}</div>
                         </div>
                     </div>
                     <div className="flex items-center gap-3">
-                        <div className="text-right"><div className="font-bold font-mono text-slate-800">${parseInt(item.twdAmount).toLocaleString()}</div><div className="text-[10px] text-slate-400">{item.currency} {item.amount}</div></div>
+                        <div className="text-right"><div className="font-bold font-mono text-hero-dark">${parseInt(item.twdAmount).toLocaleString()}</div><div className="text-[10px] text-hero-dark-muted">{item.currency} {item.amount}</div></div>
                         <button onClick={(e) => {e.stopPropagation(); onDeleteExpense(item.id)}} className="text-slate-300 hover:text-red-500 p-2"><Trash2 size={16}/></button>
                     </div>
                 </div>
             ))}
-            {expenses.length === 0 && <div className="text-center text-slate-400 text-xs py-10">暫無支出紀錄</div>}
+            {expenses.length === 0 && <div className="text-center text-hero-dark-muted text-xs py-10">暫無支出紀錄</div>}
         </div>
-        <button onClick={() => setShowAddModal(true)} className="w-full bg-black text-white py-4 rounded-2xl font-bold shadow-lg shadow-black/20 flex items-center justify-center gap-2 active:scale-95 transition-all hover:scale-[1.02]"><Plus size={20} /> 記一筆</button>
+        <button onClick={() => setShowAddModal(true)} className="w-full bg-hero-sky-500 hover:bg-hero-sky-600 text-white py-4 rounded-2xl font-bold shadow-lg shadow-black/20 flex items-center justify-center gap-2 active:scale-95 transition-all hover:scale-[1.02]"><Plus size={20} /> 記一筆</button>
         {showAddModal && <AddExpenseModal tripId={trip.id} categories={categories} members={members} initialData={editingExpense} onClose={handleCloseModal} onSave={editingExpense ? onUpdateExpense : onAddExpense} />}
         {showSettlement && <SettlementModal expenses={expenses} members={members} onClose={() => setShowSettlement(false)} />}
       </div>
@@ -553,34 +553,34 @@ function AddExpenseModal({ tripId, categories, members, initialData, onClose, on
     const handleSubmit = (e) => { e.preventDefault(); if(!formData.amount || !formData.title) return; const dataToSave = initialData ? { ...formData, id: initialData.id } : { ...formData, id: Date.now().toString(), tripId, location: formData.location || '', notes: formData.notes || '' }; onSave(dataToSave); onClose(); };
   
     return (
-      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-end sm:items-center justify-center" onClick={onClose}>
-        <div onClick={e => e.stopPropagation()} className="bg-white w-full sm:max-w-lg rounded-t-[2rem] p-8 shadow-2xl animate-slide-up max-h-[90vh] overflow-y-auto">
-          <div className="w-12 h-1.5 bg-slate-100 rounded-full mx-auto mb-8 sm:hidden"></div>
-          <div className="flex justify-between items-center mb-8"><h3 className="text-xl font-extrabold text-slate-800">{initialData ? '調整支出' : '新增支出'}</h3><button onClick={onClose}><X size={24} className="text-slate-400"/></button></div>
+      <div className="fixed inset-0 bg-hero-sky-500 hover:bg-hero-sky-600/60 backdrop-blur-sm z-[60] flex items-end sm:items-center justify-center" onClick={onClose}>
+        <div onClick={e => e.stopPropagation()} className="bg-hero-sand-50 w-full sm:max-w-lg rounded-t-[2rem] p-8 shadow-2xl animate-slide-up max-h-[90vh] overflow-y-auto">
+          <div className="w-12 h-1.5 bg-hero-sand-100 rounded-full mx-auto mb-8 sm:hidden"></div>
+          <div className="flex justify-between items-center mb-8"><h3 className="text-xl font-extrabold text-hero-dark">{initialData ? '調整支出' : '新增支出'}</h3><button onClick={onClose}><X size={24} className="text-hero-dark-muted"/></button></div>
           <form onSubmit={handleSubmit} className="space-y-5">
-             <div className="bg-slate-50 p-5 rounded-2xl flex items-end gap-3 border border-slate-100">
-                 <div className="flex-1"><label className="text-[10px] font-bold text-slate-400 mb-1 block">金額</label><input type="number" name="amount" placeholder="0" className="w-full bg-transparent text-4xl font-bold outline-none text-slate-800" value={formData.amount} onChange={handleChange} autoFocus /></div>
-                 <select name="currency" value={formData.currency} onChange={handleChange} className="bg-white px-3 py-2 rounded-xl text-sm font-bold shadow-sm outline-none border border-slate-200">{CURRENCIES.map(c => <option key={c.code} value={c.code}>{c.code}</option>)}</select>
+             <div className="bg-hero-sand-50 p-5 rounded-2xl flex items-end gap-3 border border-slate-100">
+                 <div className="flex-1"><label className="text-[10px] font-bold text-hero-dark-muted mb-1 block">金額</label><input type="number" name="amount" placeholder="0" className="w-full bg-transparent text-4xl font-bold outline-none text-hero-dark" value={formData.amount} onChange={handleChange} autoFocus /></div>
+                 <select name="currency" value={formData.currency} onChange={handleChange} className="bg-hero-sand-50 px-3 py-2 rounded-xl text-sm font-bold shadow-sm outline-none border border-slate-200">{CURRENCIES.map(c => <option key={c.code} value={c.code}>{c.code}</option>)}</select>
              </div>
              <div className="flex items-center justify-between px-2">
-                 <div className="flex items-center gap-2 text-xs text-slate-400">匯率 <input type="number" name="rate" value={formData.rate} onChange={handleChange} className="w-14 bg-slate-100 rounded px-1 py-0.5 text-center text-slate-600 font-mono"/></div>
-                 <div className="text-sm font-bold text-slate-800">≈ TWD {formData.twdAmount.toLocaleString()}</div>
+                 <div className="flex items-center gap-2 text-xs text-hero-dark-muted">匯率 <input type="number" name="rate" value={formData.rate} onChange={handleChange} className="w-14 bg-hero-sand-100 rounded px-1 py-0.5 text-center text-slate-600 font-mono"/></div>
+                 <div className="text-sm font-bold text-hero-dark">≈ TWD {formData.twdAmount.toLocaleString()}</div>
              </div>
              <div className="grid grid-cols-2 gap-4">
-                 <div><label className="text-[10px] text-slate-400 font-bold mb-1 block">項目名稱</label><input type="text" name="title" placeholder="例: 一蘭拉麵" className="w-full p-4 bg-slate-50 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-black" value={formData.title} onChange={handleChange}/></div>
-                 <div><label className="text-[10px] text-slate-400 font-bold mb-1 block">分類</label><select name="category" value={formData.category} onChange={handleChange} className="w-full p-4 bg-slate-50 rounded-xl text-sm font-bold outline-none appearance-none focus:ring-2 focus:ring-black">{categories.map(c => <option key={c} value={c}>{c}</option>)}</select></div>
+                 <div><label className="text-[10px] text-hero-dark-muted font-bold mb-1 block">項目名稱</label><input type="text" name="title" placeholder="例: 一蘭拉麵" className="w-full p-4 bg-hero-sand-50 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-black" value={formData.title} onChange={handleChange}/></div>
+                 <div><label className="text-[10px] text-hero-dark-muted font-bold mb-1 block">分類</label><select name="category" value={formData.category} onChange={handleChange} className="w-full p-4 bg-hero-sand-50 rounded-xl text-sm font-bold outline-none appearance-none focus:ring-2 focus:ring-black">{categories.map(c => <option key={c} value={c}>{c}</option>)}</select></div>
              </div>
              <div className="grid grid-cols-2 gap-4">
-                 <div><label className="text-[10px] text-slate-400 font-bold mb-1 block">誰付 (Payer)</label><select name="payer" value={formData.payer} onChange={handleChange} className="w-full p-4 bg-slate-50 rounded-xl text-sm font-bold outline-none appearance-none focus:ring-2 focus:ring-black">{members.map(m => <option key={m} value={m}>{m}</option>)}</select></div>
-                 <div><label className="text-[10px] text-slate-400 font-bold mb-1 block">算誰的 (For Who)</label><select name="forWho" value={formData.forWho} onChange={handleChange} className="w-full p-4 bg-slate-50 rounded-xl text-sm font-bold outline-none appearance-none focus:ring-2 focus:ring-black"><option value="全體">全體 (均分)</option>{members.map(m => <option key={m} value={m}>{m}</option>)}</select></div>
+                 <div><label className="text-[10px] text-hero-dark-muted font-bold mb-1 block">誰付 (Payer)</label><select name="payer" value={formData.payer} onChange={handleChange} className="w-full p-4 bg-hero-sand-50 rounded-xl text-sm font-bold outline-none appearance-none focus:ring-2 focus:ring-black">{members.map(m => <option key={m} value={m}>{m}</option>)}</select></div>
+                 <div><label className="text-[10px] text-hero-dark-muted font-bold mb-1 block">算誰的 (For Who)</label><select name="forWho" value={formData.forWho} onChange={handleChange} className="w-full p-4 bg-hero-sand-50 rounded-xl text-sm font-bold outline-none appearance-none focus:ring-2 focus:ring-black"><option value="全體">全體 (均分)</option>{members.map(m => <option key={m} value={m}>{m}</option>)}</select></div>
              </div>
              <div className="grid grid-cols-2 gap-4">
-                 <div><label className="text-[10px] text-slate-400 font-bold mb-1 block">付款方式</label><select name="paymentMethod" value={formData.paymentMethod} onChange={handleChange} className="w-full p-4 bg-slate-50 rounded-xl text-sm font-bold outline-none appearance-none focus:ring-2 focus:ring-black">{PAYMENT_METHODS.map(m => <option key={m} value={m}>{m}</option>)}</select></div>
-                 <div><label className="text-[10px] text-slate-400 font-bold mb-1 block">日期</label><input type="text" name="date" placeholder="YYYY/MM/DD" className="w-full p-4 bg-slate-50 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-black" value={formData.date} onChange={handleChange} /></div>
+                 <div><label className="text-[10px] text-hero-dark-muted font-bold mb-1 block">付款方式</label><select name="paymentMethod" value={formData.paymentMethod} onChange={handleChange} className="w-full p-4 bg-hero-sand-50 rounded-xl text-sm font-bold outline-none appearance-none focus:ring-2 focus:ring-black">{PAYMENT_METHODS.map(m => <option key={m} value={m}>{m}</option>)}</select></div>
+                 <div><label className="text-[10px] text-hero-dark-muted font-bold mb-1 block">日期</label><input type="text" name="date" placeholder="YYYY/MM/DD" className="w-full p-4 bg-hero-sand-50 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-black" value={formData.date} onChange={handleChange} /></div>
              </div>
-             <div><label className="text-[10px] text-slate-400 font-bold mb-1 block">地點</label><input type="text" name="location" placeholder="例: 澀谷百貨" className="w-full p-4 bg-slate-50 rounded-xl text-sm outline-none focus:ring-2 focus:ring-black" value={formData.location} onChange={handleChange}/></div>
-             <div><label className="text-[10px] text-slate-400 font-bold mb-1 block">備註</label><textarea name="notes" rows="2" placeholder="其他細節..." className="w-full p-4 bg-slate-50 rounded-xl text-sm outline-none resize-none focus:ring-2 focus:ring-black" value={formData.notes} onChange={handleChange}></textarea></div>
-             <button type="submit" className="w-full bg-black text-white py-4 rounded-xl font-bold text-lg shadow-xl hover:scale-[1.02] active:scale-95 transition-all mt-4">{initialData ? '儲存變更' : '儲存支出'}</button>
+             <div><label className="text-[10px] text-hero-dark-muted font-bold mb-1 block">地點</label><input type="text" name="location" placeholder="例: 澀谷百貨" className="w-full p-4 bg-hero-sand-50 rounded-xl text-sm outline-none focus:ring-2 focus:ring-black" value={formData.location} onChange={handleChange}/></div>
+             <div><label className="text-[10px] text-hero-dark-muted font-bold mb-1 block">備註</label><textarea name="notes" rows="2" placeholder="其他細節..." className="w-full p-4 bg-hero-sand-50 rounded-xl text-sm outline-none resize-none focus:ring-2 focus:ring-black" value={formData.notes} onChange={handleChange}></textarea></div>
+             <button type="submit" className="w-full bg-hero-sky-500 hover:bg-hero-sky-600 text-white py-4 rounded-xl font-bold text-lg shadow-xl hover:scale-[1.02] active:scale-95 transition-all mt-4">{initialData ? '儲存變更' : '儲存支出'}</button>
           </form>
         </div>
       </div>
@@ -590,13 +590,13 @@ function AddExpenseModal({ tripId, categories, members, initialData, onClose, on
 function AddTripModal({ onClose, onSave }) {
   const [formData, setFormData] = useState({ title: '東京富士山家族旅行', dates: '2025/12/15-2025/12/22', timezone: 'Asia/Taipei', coverImage: '' });
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[70] flex items-center justify-center p-6">
-      <div onClick={e => e.stopPropagation()} className="bg-white rounded-[2rem] p-8 w-full max-w-sm shadow-2xl animate-fade-in">
-        <div className="flex justify-between items-center mb-6"><h3 className="text-xl font-extrabold text-slate-800">建立新旅程</h3><button onClick={onClose}><X size={24} className="text-slate-400"/></button></div>
+    <div className="fixed inset-0 bg-hero-sky-500 hover:bg-hero-sky-600/60 backdrop-blur-sm z-[70] flex items-center justify-center p-6">
+      <div onClick={e => e.stopPropagation()} className="bg-hero-sand-50 rounded-[2rem] p-8 w-full max-w-sm shadow-2xl animate-fade-in">
+        <div className="flex justify-between items-center mb-6"><h3 className="text-xl font-extrabold text-hero-dark">建立新旅程</h3><button onClick={onClose}><X size={24} className="text-hero-dark-muted"/></button></div>
         <form onSubmit={(e) => { e.preventDefault(); onSave({ id: Date.now().toString(), ...formData, days: [] }); }} className="space-y-5">
-          <div><label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">旅程名稱</label><input required type="text" placeholder="例：東京五日遊" className="w-full p-4 bg-slate-50 rounded-xl font-bold outline-none focus:ring-2 focus:ring-black" onChange={e => setFormData({...formData, title: e.target.value})} value={formData.title} /></div>
-          <div><label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">日期範圍</label><input required type="text" value={formData.dates} className="w-full p-4 bg-slate-50 rounded-xl font-bold outline-none focus:ring-2 focus:ring-black" onChange={e => setFormData({...formData, dates: formatDate(e.target.value)})} /></div>
-          <button type="submit" className="w-full bg-black text-white py-4 rounded-xl font-bold shadow-lg hover:shadow-xl active:scale-95 transition-all">開始規劃</button>
+          <div><label className="text-[10px] font-bold text-hero-dark-muted uppercase mb-1 block">旅程名稱</label><input required type="text" placeholder="例：東京五日遊" className="w-full p-4 bg-hero-sand-50 rounded-xl font-bold outline-none focus:ring-2 focus:ring-black" onChange={e => setFormData({...formData, title: e.target.value})} value={formData.title} /></div>
+          <div><label className="text-[10px] font-bold text-hero-dark-muted uppercase mb-1 block">日期範圍</label><input required type="text" value={formData.dates} className="w-full p-4 bg-hero-sand-50 rounded-xl font-bold outline-none focus:ring-2 focus:ring-black" onChange={e => setFormData({...formData, dates: formatDate(e.target.value)})} /></div>
+          <button type="submit" className="w-full bg-hero-sky-500 hover:bg-hero-sky-600 text-white py-4 rounded-xl font-bold shadow-lg hover:shadow-xl active:scale-95 transition-all">開始規劃</button>
         </form>
       </div>
     </div>
@@ -608,24 +608,24 @@ function ItemModal({ initialData, tripTimezone, onClose, onSave }) {
   const [formData, setFormData] = useState(initialData || { time: '09:00', duration: '1', title: '', type: 'spot', address: '', tips: '', highlight: false, timezone: defaultTz });
   const handleChange = (e) => { const { name, value, type, checked } = e.target; setFormData(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value })); };
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-end sm:items-center justify-center" onClick={onClose}>
-      <div onClick={e => e.stopPropagation()} className="bg-white w-full sm:max-w-md rounded-t-[2rem] sm:rounded-[2rem] p-8 shadow-2xl animate-slide-up max-h-[90vh] overflow-y-auto">
-        <div className="w-12 h-1.5 bg-slate-100 rounded-full mx-auto mb-8 sm:hidden"></div>
-        <div className="flex justify-between items-center mb-8"><h3 className="text-xl font-extrabold text-slate-800">{initialData ? '編輯行程' : '新增行程'}</h3><button onClick={onClose} className="bg-slate-50 p-2 rounded-full hover:bg-slate-100"><X size={20} className="text-slate-500"/></button></div>
+    <div className="fixed inset-0 bg-hero-sky-500 hover:bg-hero-sky-600/60 backdrop-blur-sm z-[60] flex items-end sm:items-center justify-center" onClick={onClose}>
+      <div onClick={e => e.stopPropagation()} className="bg-hero-sand-50 w-full sm:max-w-md rounded-t-[2rem] sm:rounded-[2rem] p-8 shadow-2xl animate-slide-up max-h-[90vh] overflow-y-auto">
+        <div className="w-12 h-1.5 bg-hero-sand-100 rounded-full mx-auto mb-8 sm:hidden"></div>
+        <div className="flex justify-between items-center mb-8"><h3 className="text-xl font-extrabold text-hero-dark">{initialData ? '編輯行程' : '新增行程'}</h3><button onClick={onClose} className="bg-hero-sand-50 p-2 rounded-full hover:bg-hero-sand-100"><X size={20} className="text-slate-500"/></button></div>
         <form onSubmit={(e) => { e.preventDefault(); onSave(formData); }} className="space-y-5">
            <div className="flex gap-4">
-              <div className="flex-1"><label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">時間</label><div className="relative"><input type="time" name="time" value={formData.time} onChange={handleChange} className="w-full pl-10 pr-3 py-4 bg-slate-50 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-black" /><Clock size={16} className="absolute left-3 top-4 text-slate-400"/></div></div>
-              <div className="flex-1"><label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">時區</label><div className="relative"><select name="timezone" value={formData.timezone} onChange={handleChange} className="w-full pl-10 pr-3 py-4 bg-slate-50 rounded-xl text-xs font-bold outline-none appearance-none focus:ring-2 focus:ring-black"><option value="Asia/Taipei">台北 (GMT+8)</option><option value="Asia/Tokyo">東京 (GMT+9)</option><option value="Asia/Seoul">首爾 (GMT+9)</option><option value="Asia/Bangkok">曼谷 (GMT+7)</option><option value="Europe/London">倫敦 (GMT+0)</option><option value="America/New_York">紐約 (GMT-5)</option></select><Globe size={16} className="absolute left-3 top-4 text-slate-400"/></div></div>
+              <div className="flex-1"><label className="text-[10px] font-bold text-hero-dark-muted uppercase mb-1 block">時間</label><div className="relative"><input type="time" name="time" value={formData.time} onChange={handleChange} className="w-full pl-10 pr-3 py-4 bg-hero-sand-50 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-black" /><Clock size={16} className="absolute left-3 top-4 text-hero-dark-muted"/></div></div>
+              <div className="flex-1"><label className="text-[10px] font-bold text-hero-dark-muted uppercase mb-1 block">時區</label><div className="relative"><select name="timezone" value={formData.timezone} onChange={handleChange} className="w-full pl-10 pr-3 py-4 bg-hero-sand-50 rounded-xl text-xs font-bold outline-none appearance-none focus:ring-2 focus:ring-black"><option value="Asia/Taipei">台北 (GMT+8)</option><option value="Asia/Tokyo">東京 (GMT+9)</option><option value="Asia/Seoul">首爾 (GMT+9)</option><option value="Asia/Bangkok">曼谷 (GMT+7)</option><option value="Europe/London">倫敦 (GMT+0)</option><option value="America/New_York">紐約 (GMT-5)</option></select><Globe size={16} className="absolute left-3 top-4 text-hero-dark-muted"/></div></div>
            </div>
-           <div><label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">標題</label><input required type="text" name="title" value={formData.title} onChange={handleChange} placeholder="例：清水寺" className="w-full px-4 py-4 bg-slate-50 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-black" /></div>
+           <div><label className="text-[10px] font-bold text-hero-dark-muted uppercase mb-1 block">標題</label><input required type="text" name="title" value={formData.title} onChange={handleChange} placeholder="例：清水寺" className="w-full px-4 py-4 bg-hero-sand-50 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-black" /></div>
            <div className="flex gap-4">
-              <div className="flex-1"><label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">類型</label><div className="relative"><select name="type" value={formData.type} onChange={handleChange} className="w-full pl-10 pr-3 py-4 bg-slate-50 rounded-xl text-sm font-bold outline-none appearance-none focus:ring-2 focus:ring-black"><option value="spot">景點</option><option value="food">餐廳</option><option value="transport">交通</option><option value="stay">住宿</option><option value="relax">放鬆</option><option value="work">工作</option></select><div className="absolute left-3 top-4 text-slate-400">{TYPE_ICONS[formData.type] || <MapPin size={16}/>}</div></div></div>
-              <div className="w-1/3"><label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">時長 (hr)</label><input type="number" step="0.5" name="duration" value={formData.duration} onChange={handleChange} className="w-full px-3 py-4 bg-slate-50 rounded-xl text-sm font-bold outline-none text-center focus:ring-2 focus:ring-black" /></div>
+              <div className="flex-1"><label className="text-[10px] font-bold text-hero-dark-muted uppercase mb-1 block">類型</label><div className="relative"><select name="type" value={formData.type} onChange={handleChange} className="w-full pl-10 pr-3 py-4 bg-hero-sand-50 rounded-xl text-sm font-bold outline-none appearance-none focus:ring-2 focus:ring-black"><option value="spot">景點</option><option value="food">餐廳</option><option value="transport">交通</option><option value="stay">住宿</option><option value="relax">放鬆</option><option value="work">工作</option></select><div className="absolute left-3 top-4 text-hero-dark-muted">{TYPE_ICONS[formData.type] || <MapPin size={16}/>}</div></div></div>
+              <div className="w-1/3"><label className="text-[10px] font-bold text-hero-dark-muted uppercase mb-1 block">時長 (hr)</label><input type="number" step="0.5" name="duration" value={formData.duration} onChange={handleChange} className="w-full px-3 py-4 bg-hero-sand-50 rounded-xl text-sm font-bold outline-none text-center focus:ring-2 focus:ring-black" /></div>
            </div>
-           <div><label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">地點</label><div className="relative"><input type="text" name="address" value={formData.address} onChange={handleChange} placeholder="輸入地址..." className="w-full pl-10 pr-3 py-4 bg-slate-50 rounded-xl text-xs outline-none focus:ring-2 focus:ring-black" /><MapPin size={16} className="absolute left-3 top-4 text-slate-400"/></div></div>
-           <div><label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">筆記</label><textarea name="tips" rows="3" value={formData.tips} onChange={handleChange} className="w-full px-4 py-3 bg-slate-50 rounded-xl text-xs outline-none focus:ring-2 focus:ring-black resize-none" placeholder="備註..."></textarea></div>
-           <label className="flex items-center gap-3 p-4 bg-slate-50 rounded-xl cursor-pointer hover:bg-slate-100 transition-colors"><input type="checkbox" name="highlight" checked={formData.highlight} onChange={handleChange} className="w-5 h-5 accent-red-500 rounded" /><span className="text-sm font-bold text-slate-600">標記為重點行程 🔥</span></label>
-           <button type="submit" className="w-full bg-black text-white py-4 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl active:scale-95 transition-all mt-4">{initialData ? '儲存變更' : '新增行程'}</button>
+           <div><label className="text-[10px] font-bold text-hero-dark-muted uppercase mb-1 block">地點</label><div className="relative"><input type="text" name="address" value={formData.address} onChange={handleChange} placeholder="輸入地址..." className="w-full pl-10 pr-3 py-4 bg-hero-sand-50 rounded-xl text-xs outline-none focus:ring-2 focus:ring-black" /><MapPin size={16} className="absolute left-3 top-4 text-hero-dark-muted"/></div></div>
+           <div><label className="text-[10px] font-bold text-hero-dark-muted uppercase mb-1 block">筆記</label><textarea name="tips" rows="3" value={formData.tips} onChange={handleChange} className="w-full px-4 py-3 bg-hero-sand-50 rounded-xl text-xs outline-none focus:ring-2 focus:ring-black resize-none" placeholder="備註..."></textarea></div>
+           <label className="flex items-center gap-3 p-4 bg-hero-sand-50 rounded-xl cursor-pointer hover:bg-hero-sand-100 transition-colors"><input type="checkbox" name="highlight" checked={formData.highlight} onChange={handleChange} className="w-5 h-5 accent-red-500 rounded" /><span className="text-sm font-bold text-slate-600">標記為重點行程 🔥</span></label>
+           <button type="submit" className="w-full bg-hero-sky-500 hover:bg-hero-sky-600 text-white py-4 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl active:scale-95 transition-all mt-4">{initialData ? '儲存變更' : '新增行程'}</button>
         </form>
       </div>
     </div>
@@ -642,10 +642,10 @@ function MapView({ currentDay, location }) {
     }
     return (
       <div className="p-4 space-y-4">
-        <div className="bg-white p-8 rounded-[2rem] shadow-sm text-center border border-slate-100">
+        <div className="bg-hero-sand-50 p-8 rounded-[2rem] shadow-sm text-center border border-slate-100">
           <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-4 text-blue-500"><Map size={32} /></div>
-          <h3 className="text-xl font-extrabold text-slate-800 mb-2">今日路線圖</h3>
-          <p className="text-sm text-slate-400 mb-6">已自動偵測 {addresses.length} 個地點</p>
+          <h3 className="text-xl font-extrabold text-hero-dark mb-2">今日路線圖</h3>
+          <p className="text-sm text-hero-dark-muted mb-6">已自動偵測 {addresses.length} 個地點</p>
           <a href={routeUrl} target="_blank" rel="noopener noreferrer" className="block w-full bg-blue-600 text-white py-4 rounded-xl font-bold shadow-lg shadow-blue-200 hover:shadow-blue-300 hover:-translate-y-1 transition-all">開啟 Google Maps 導航</a>
         </div>
       </div>
@@ -668,35 +668,35 @@ function ToolboxView() {
 
     return (
       <div className="p-4 space-y-6 pb-20">
-        <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100">
-          <h3 className="font-extrabold text-slate-800 mb-6 flex items-center gap-2 text-lg"><Calculator size={20}/> 匯率試算</h3>
+        <div className="bg-hero-sand-50 p-6 rounded-[2rem] shadow-sm border border-slate-100">
+          <h3 className="font-extrabold text-hero-dark mb-6 flex items-center gap-2 text-lg"><Calculator size={20}/> 匯率試算</h3>
           <div className="flex gap-4 items-center mb-4">
              <div className="flex-1">
-                 <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">持有</label>
-                 <div className="flex items-center gap-2 bg-slate-50 p-2 rounded-xl border border-slate-200">
+                 <label className="text-[10px] font-bold text-hero-dark-muted uppercase mb-1 block">持有</label>
+                 <div className="flex items-center gap-2 bg-hero-sand-50 p-2 rounded-xl border border-slate-200">
                      <input type="number" value={amount} onChange={e => setAmount(e.target.value)} className="w-full bg-transparent font-bold outline-none text-lg" />
                      <select value={fromCurr} onChange={e => setFromCurr(e.target.value)} className="bg-transparent font-bold text-sm outline-none">{CURRENCIES.map(c=><option key={c.code} value={c.code}>{c.code}</option>)}</select>
                  </div>
              </div>
              <ArrowRight className="text-slate-300" />
              <div className="flex-1">
-                 <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">換算</label>
+                 <label className="text-[10px] font-bold text-hero-dark-muted uppercase mb-1 block">換算</label>
                  <div className="flex items-center gap-2 bg-emerald-50 p-2 rounded-xl border border-emerald-100">
                      <div className="w-full font-bold text-lg text-emerald-600">{result.toLocaleString()}</div>
                      <select value={toCurr} onChange={e => setToCurr(e.target.value)} className="bg-transparent font-bold text-sm outline-none text-emerald-700">{CURRENCIES.map(c=><option key={c.code} value={c.code}>{c.code}</option>)}</select>
                  </div>
              </div>
           </div>
-          <div className="text-[10px] text-slate-400 text-center">匯率僅供參考 (1 {fromCurr} ≈ {(RATES[fromCurr]/RATES[toCurr]).toFixed(3)} {toCurr})</div>
+          <div className="text-[10px] text-hero-dark-muted text-center">匯率僅供參考 (1 {fromCurr} ≈ {(RATES[fromCurr]/RATES[toCurr]).toFixed(3)} {toCurr})</div>
         </div>
         
-        <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100">
-          <h3 className="font-extrabold text-slate-800 mb-6 flex items-center gap-2 text-lg"><CheckSquare size={20}/> 行前確認</h3>
+        <div className="bg-hero-sand-50 p-6 rounded-[2rem] shadow-sm border border-slate-100">
+          <h3 className="font-extrabold text-hero-dark mb-6 flex items-center gap-2 text-lg"><CheckSquare size={20}/> 行前確認</h3>
           <div className="space-y-3">
             {checklist.map(item => (
-              <div key={item.id} onClick={() => toggleCheck(item.id)} className="flex items-center gap-4 cursor-pointer group p-3 hover:bg-slate-50 rounded-xl transition-colors">
-                <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${item.checked ? 'bg-black border-black scale-110' : 'border-slate-300 bg-white'}`}>{item.checked && <CheckSquare size={14} className="text-white" />}</div>
-                <span className={`text-sm font-bold transition-colors ${item.checked ? 'text-slate-400 line-through' : 'text-slate-700'}`}>{item.text}</span>
+              <div key={item.id} onClick={() => toggleCheck(item.id)} className="flex items-center gap-4 cursor-pointer group p-3 hover:bg-hero-sand-50 rounded-xl transition-colors">
+                <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${item.checked ? 'bg-hero-sky-500 hover:bg-hero-sky-600 border-black scale-110' : 'border-slate-300 bg-hero-sand-50'}`}>{item.checked && <CheckSquare size={14} className="text-white" />}</div>
+                <span className={`text-sm font-bold transition-colors ${item.checked ? 'text-hero-dark-muted line-through' : 'text-slate-700'}`}>{item.text}</span>
               </div>
             ))}
           </div>

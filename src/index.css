@@ -1,3 +1,8 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+body {
+  /* 強制套用我們的新背景色 */
+  @apply bg-hero-sand-50 text-hero-dark;
+}
