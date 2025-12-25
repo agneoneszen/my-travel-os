@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { initialTrips } from './data/trips';
+import { initialTrips } from '../data/trips';
 import { 
   MapPin, Calendar, ArrowLeft, Navigation, Plus, X, Save, 
   Trash2, Edit2, Utensils, Car, Camera, Coffee, Bed, Briefcase, Clock,

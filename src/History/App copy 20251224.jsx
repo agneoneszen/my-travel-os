@@ -5,11 +5,11 @@ import {
   Trash2, Edit2, Utensils, Car, Camera, Coffee, Bed, Briefcase, Clock,
   Map, List, Wallet, PieChart, Image, Users,
   Globe, LogIn, LogOut, GripVertical, CheckSquare, Calculator,
-  WifiOff, Wifi, DollarSign, ArrowRight, Mail, CloudUpload // ⬅️ FIX: 補上這個缺少的引用
+  WifiOff, Wifi, DollarSign, ArrowRight, Mail, CloudUpload
 } from 'lucide-react';
 
 // --- Firebase ---
-import { auth, googleProvider, db } from './firebase';
+import { auth, googleProvider, db } from '../firebase';
 import { signInWithPopup, signOut, onAuthStateChanged, getRedirectResult } from 'firebase/auth';
 import { collection, addDoc, query, where, onSnapshot, doc, updateDoc, deleteDoc, writeBatch, getDocs } from 'firebase/firestore';
 
@@ -31,6 +31,7 @@ const CURRENCIES = [
 const PAYMENT_METHODS = ['現金', '信用卡', 'Apple Pay', 'Line Pay', 'Suica'];
 const FINANCE_MEMBERS_BASE = ['我', '公費', '旅伴 A', '旅伴 B']; 
 
+// 關鍵 helper：產生唯一 ID
 const generateId = () => Date.now().toString(36) + Math.random().toString(36).substr(2);
 
 const formatDate = (dateStr) => {
@@ -297,6 +298,7 @@ function TripDetail({ trip, expenses, categories, onBack, onUpdate, onAddExpense
     );
 }
 
+// 🟢 PlanView: FAB + Solid Button + Robust Edit Logic
 function PlanView({ trip, activeDayIdx, onUpdate }) {
   const [editingIndex, setEditingIndex] = useState(-1);
   const [editingItem, setEditingItem] = useState(null);
@@ -306,17 +308,16 @@ function PlanView({ trip, activeDayIdx, onUpdate }) {
   const schedule = currentDay?.schedule || [];
 
   const handleSaveItem = (itemData) => {
+    // 🛡️ 安全檢查：防止在沒有天數時崩潰
     const newDays = [...(trip.days || [])];
-    const daySchedule = [...(newDays[activeDayIdx]?.schedule || [])];
-    
-    // 如果編輯的是舊資料(無ID)，我們會自動補上 ID
+    if (!newDays[activeDayIdx]) return;
+
+    const daySchedule = [...(newDays[activeDayIdx].schedule || [])];
     const newItemWithId = { ...itemData, id: itemData.id || generateId() };
 
     if (editingIndex >= 0) {
-      // 編輯模式：使用 index 直接替換
       daySchedule[editingIndex] = newItemWithId;
     } else {
-      // 新增模式
       daySchedule.push(newItemWithId);
       daySchedule.sort((a, b) => a.time.localeCompare(b.time)); 
     }
@@ -331,7 +332,6 @@ function PlanView({ trip, activeDayIdx, onUpdate }) {
   const handleDeleteItem = (index) => {
     if(!window.confirm("確定刪除？")) return;
     const newDays = [...(trip.days || [])];
-    // 改用 index 刪除
     const daySchedule = newDays[activeDayIdx].schedule.filter((_, i) => i !== index);
     newDays[activeDayIdx] = { ...newDays[activeDayIdx], schedule: daySchedule };
     onUpdate({ ...trip, days: newDays });
@@ -360,7 +360,7 @@ function PlanView({ trip, activeDayIdx, onUpdate }) {
   };
 
   return (
-    <div className="pb-10">
+    <div className="pb-28 relative">
       {!currentDay ? (
           <div className="text-center py-20 px-6">
               <div className="w-16 h-16 bg-hero-sand-100 rounded-full flex items-center justify-center mx-auto mb-4 text-hero-dark-muted"><Calendar size={24} /></div>
@@ -369,7 +369,7 @@ function PlanView({ trip, activeDayIdx, onUpdate }) {
           </div>
       ) : (
         <>
-          {schedule.length === 0 && <div className="text-center py-16 text-slate-300 text-sm">尚無行程，點擊下方新增</div>}
+          {schedule.length === 0 && <div className="text-center py-16 text-slate-300 text-sm">尚無行程，點擊右下角新增</div>}
           <DragDropContext onDragEnd={handleDragEnd}>
             <Droppable droppableId="schedule-list">
               {(provided) => (
@@ -403,7 +403,19 @@ function PlanView({ trip, activeDayIdx, onUpdate }) {
               )}
             </Droppable>
           </DragDropContext>
-          <button onClick={openAdd} className="mx-4 mt-6 py-4 border-2 border-dashed border-slate-200 text-hero-dark-muted rounded-2xl font-bold hover:border-black hover:text-black transition-all flex items-center justify-center gap-2 text-sm w-[calc(100%-2rem)]"><Plus size={16} /> 新增行程</button>
+          
+          {/* 優化後的底部實心按鈕 */}
+          <button onClick={openAdd} className="mx-4 mt-6 py-4 bg-hero-sand-100 text-slate-500 rounded-2xl font-bold hover:bg-slate-200 transition-all flex items-center justify-center gap-2 text-sm w-[calc(100%-2rem)] active:scale-95">
+            <Plus size={16} /> 新增下一個行程
+          </button>
+
+          {/* 懸浮按鈕 (FAB) */}
+          <button 
+            onClick={openAdd} 
+            className="fixed bottom-24 right-5 w-14 h-14 bg-hero-sky-500 hover:bg-hero-sky-600 text-white rounded-full shadow-2xl shadow-black/40 flex items-center justify-center z-50 hover:scale-110 active:scale-90 transition-all"
+          >
+            <Plus size={28} />
+          </button>
         </>
       )}
       {showItemModal && <ItemModal initialData={editingItem} tripTimezone={trip.timezone} onClose={() => setShowItemModal(false)} onSave={handleSaveItem} />}
@@ -549,7 +561,7 @@ function AddTripModal({ onClose, onSave }) {
         <div className="flex justify-between items-center mb-6"><h3 className="text-xl font-extrabold text-hero-dark">建立新旅程</h3><button onClick={onClose}><X size={24} className="text-hero-dark-muted"/></button></div>
         <form onSubmit={(e) => { e.preventDefault(); onSave({ id: Date.now().toString(), ...formData, days: [] }); }} className="space-y-5">
           <div><label className="text-[10px] font-bold text-hero-dark-muted uppercase mb-1 block">旅程名稱</label><input required type="text" placeholder="例：東京五日遊" className="w-full p-4 bg-hero-sand-50 rounded-xl font-bold outline-none focus:ring-2 focus:ring-black" onChange={e => setFormData({...formData, title: e.target.value})} value={formData.title} /></div>
-          <div><label className="text-[10px] font-bold text-hero-dark-muted uppercase mb-1 block">日期範圍</label><input required type="text" value={formData.dates} placeholder="2025/12/15-2025/12/22" className="w-full p-4 bg-hero-sand-50 rounded-xl font-bold outline-none focus:ring-2 focus:ring-black" onChange={e => setFormData({...formData, dates: formatDate(e.target.value)})} /></div>
+          <div><label className="text-[10px] font-bold text-hero-dark-muted uppercase mb-1 block">日期範圍</label><input required type="text" value={formData.dates} placeholder="YYYY/MM/DD-YYYY/MM/DD" className="w-full p-4 bg-hero-sand-50 rounded-xl font-bold outline-none focus:ring-2 focus:ring-black" onChange={e => setFormData({...formData, dates: formatDate(e.target.value)})} /></div>
           <button type="submit" className="w-full bg-hero-sky-500 hover:bg-hero-sky-600 text-white py-4 rounded-xl font-bold shadow-lg hover:shadow-xl active:scale-95 transition-all">開始規劃</button>
         </form>
       </div>
@@ -557,7 +569,41 @@ function AddTripModal({ onClose, onSave }) {
   )
 }
 
-// 🟢 Toolbox: 可編輯匯率 + 匯入/匯出功能
+function MapView({ currentDay, location }) {
+    const addresses = currentDay?.schedule?.filter(item => item.address && item.address.length > 2).map(item => encodeURIComponent(item.address)) || [];
+    let iframeSrc = `https://maps.google.com/maps?q=${encodeURIComponent(location)}&t=&z=13&ie=UTF8&iwloc=&output=embed`;
+    if (addresses.length > 0) {
+        iframeSrc = `https://maps.google.com/maps?q=${addresses[0]}&t=&z=14&ie=UTF8&iwloc=&output=embed`;
+    }
+    let externalLink = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`;
+    if (addresses.length > 0) {
+        const destination = addresses[addresses.length - 1];
+        const waypoints = addresses.slice(0, -1).join('|');
+        externalLink = `https://www.google.com/maps/dir/?api=1&destination=${destination}&waypoints=${waypoints}`;
+    }
+
+    return (
+      <div className="p-4 space-y-4">
+        <div className="bg-hero-sand-50 p-4 rounded-[2rem] shadow-sm text-center border border-slate-100">
+          <div className="flex items-center justify-between mb-4 px-2">
+              <div className="flex items-center gap-2">
+                  <div className="w-10 h-10 bg-blue-50 rounded-full flex items-center justify-center text-blue-500"><Map size={20} /></div>
+                  <div className="text-left">
+                      <h3 className="text-sm font-extrabold text-hero-dark">路線地圖</h3>
+                      <p className="text-[10px] text-hero-dark-muted">{addresses.length} 個停靠點</p>
+                  </div>
+              </div>
+              <a href={externalLink} target="_blank" rel="noopener noreferrer" className="bg-blue-600 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-lg shadow-blue-200 hover:bg-blue-700 transition-colors">Google Maps App</a>
+          </div>
+          <div className="w-full h-64 bg-hero-sand-100 rounded-2xl overflow-hidden border border-slate-200 relative">
+              <iframe title="Map Preview" width="100%" height="100%" frameBorder="0" scrolling="no" src={iframeSrc} className="w-full h-full opacity-90 hover:opacity-100 transition-opacity"></iframe>
+              <div className="absolute inset-0 pointer-events-none border-4 border-white/50 rounded-2xl"></div>
+          </div>
+        </div>
+      </div>
+    )
+}
+
 function ToolboxView() {
     const [amount, setAmount] = useState('1000');
     const [fromCurr, setFromCurr] = useState('JPY');
@@ -576,7 +622,6 @@ function ToolboxView() {
     useEffect(() => { localStorage.setItem('my-travel-checklist', JSON.stringify(checklist)); }, [checklist]);
     const toggleCheck = (id) => { setChecklist(checklist.map(item => item.id === id ? { ...item, checked: !item.checked } : item)); };
 
-    // 匯出功能
     const handleExport = async () => {
         if(!auth.currentUser) return alert("請先登入");
         try {
@@ -599,14 +644,13 @@ function ToolboxView() {
         } catch(e) { console.error(e); alert("匯出失敗"); }
     };
 
-    // 匯入功能
     const fileInputRef = useRef(null);
     const handleImportClick = () => fileInputRef.current.click();
     const handleFileChange = async (e) => {
         const file = e.target.files[0];
         if(!file) return;
         if(!auth.currentUser) return alert("請先登入");
-        if(!window.confirm("確定要匯入資料嗎？\n這將會新增行程到您的帳號中 (不會覆蓋舊資料)。")) return;
+        if(!window.confirm("確定要匯入資料嗎？")) return;
 
         const reader = new FileReader();
         reader.onload = async (event) => {
@@ -637,9 +681,9 @@ function ToolboxView() {
                     });
                 }
                 await batch.commit();
-                alert(`成功匯入 ${data.trips.length} 個旅程！請重新整理頁面。`);
+                alert(`成功匯入 ${data.trips.length} 個旅程！`);
                 window.location.reload();
-            } catch(err) { console.error(err); alert("匯入失敗：檔案格式錯誤或網路問題"); }
+            } catch(err) { console.error(err); alert("匯入失敗"); }
         };
         reader.readAsText(file);
     };
@@ -667,20 +711,14 @@ function ToolboxView() {
           </div>
           <div className="flex items-center gap-2 justify-center mt-2">
              <span className="text-[10px] text-hero-dark-muted">自訂匯率: 1 {fromCurr} =</span>
-             <input 
-                type="number" 
-                value={customRate} 
-                onChange={e => setCustomRate(e.target.value)} 
-                className="w-20 bg-hero-sand-50 border border-slate-200 rounded px-2 py-1 text-center text-xs font-bold focus:border-black outline-none"
-             />
+             <input type="number" value={customRate} onChange={e => setCustomRate(e.target.value)} className="w-20 bg-hero-sand-50 border border-slate-200 rounded px-2 py-1 text-center text-xs font-bold focus:border-black outline-none" />
              <span className="text-[10px] text-hero-dark-muted">{toCurr}</span>
           </div>
         </div>
         
-        {/* Data Manager */}
         <div className="bg-hero-sand-50 p-6 rounded-[2rem] shadow-sm border border-slate-100">
             <h3 className="font-extrabold text-hero-dark mb-4 flex items-center gap-2 text-lg"><CloudUpload size={20}/> 數據管理</h3>
-            <p className="text-xs text-hero-dark-muted mb-4 leading-relaxed">您可以匯出所有旅程與記帳資料進行備份，或將備份檔匯入至此帳號。</p>
+            <p className="text-xs text-hero-dark-muted mb-4 leading-relaxed">您可以匯出所有旅程與記帳資料進行備份。</p>
             <div className="flex gap-3">
                 <button onClick={handleExport} className="flex-1 bg-slate-800 text-white py-3 rounded-xl font-bold text-sm shadow-lg hover:bg-hero-sky-500 hover:bg-hero-sky-600 transition-colors flex items-center justify-center gap-2">
                     <ArrowRight size={14} className="-rotate-45"/> 匯出備份
